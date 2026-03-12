@@ -51,64 +51,66 @@ function saveCategories(cats) {
   localStorage.setItem("wallet_categories", JSON.stringify(cats));
 }
 
-function renderQuickCategories(els) {
-  const container = document.getElementById("quick-categories");
-  if (!container) return;
+function renderCategoryDropdown(els) {
+  const dropdown = document.getElementById("category-dropdown");
+  if (!dropdown) return;
   const cats = loadCategories();
-  container.innerHTML = cats
-    .map((cat) => `<button type="button" class="cat-btn" data-cat="${escapeHtml(cat)}">${escapeHtml(cat)}</button>`)
-    .join("");
-}
-
-function renderCategoryManager() {
-  const container = document.getElementById("category-manager");
-  if (!container) return;
-  const cats = loadCategories();
-  container.innerHTML = `
-    <div class="category-manager">
-      <div class="category-manager-title">Category Manager</div>
-      <div id="cat-manager-list">
-        ${cats
-          .map(
-            (cat, i) => `
-          <div class="category-row" data-index="${i}">
-            <span class="cat-name">${escapeHtml(cat)}</span>
-            <div class="cat-actions">
-              <button type="button" class="cat-edit-btn" data-index="${i}">✏ Edit</button>
-              <button type="button" class="cat-delete-btn" data-index="${i}">🗑 Delete</button>
-            </div>
-          </div>`
-          )
-          .join("")}
-      </div>
-      <div class="cat-add-row">
-        <input type="text" id="new-cat-input" class="cat-input" placeholder="New category…" />
-        <button type="button" id="new-cat-btn" class="cat-add-btn">+ Add</button>
-      </div>
+  dropdown.innerHTML =
+    cats
+      .map(
+        (cat, i) => `
+      <div class="category-row" data-index="${i}">
+        <span class="category-name">${escapeHtml(cat)}</span>
+        <div class="category-actions">
+          <button type="button" class="cat-edit-btn" data-index="${i}" title="Edit">✏</button>
+          <button type="button" class="cat-delete-btn" data-index="${i}" title="Delete">🗑</button>
+        </div>
+      </div>`
+      )
+      .join("") +
+    `<div class="cat-add-row">
+      <input type="text" id="new-category-input" class="cat-input" placeholder="Add category" />
+      <button type="button" id="add-category-btn" class="cat-add-btn">Add</button>
     </div>`;
 }
 
-function wireCategoryManager(els) {
-  // Quick category button click — delegated on stable container
-  const quickContainer = document.getElementById("quick-categories");
-  if (quickContainer) {
-    quickContainer.addEventListener("click", (e) => {
-      const btn = e.target.closest(".cat-btn");
-      if (!btn) return;
-      els.transactionCategory.value = btn.dataset.cat;
-    });
-  }
+function wireCategoryDropdown(els) {
+  const toggleBtn = document.getElementById("category-toggle");
+  const dropdown = document.getElementById("category-dropdown");
+  if (!toggleBtn || !dropdown) return;
 
-  // All category manager interactions — delegated on stable container
-  const container = document.getElementById("category-manager");
-  if (!container) return;
+  // Toggle open/close
+  toggleBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle("hidden");
+  });
 
-  container.addEventListener("click", (e) => {
+  // Close on outside click
+  document.addEventListener("click", (e) => {
+    if (!dropdown.classList.contains("hidden") &&
+        !dropdown.contains(e.target) &&
+        e.target !== toggleBtn) {
+      dropdown.classList.add("hidden");
+    }
+  });
+
+  // All dropdown interactions — event delegation
+  dropdown.addEventListener("click", (e) => {
+    // Select category by clicking name
+    const nameSpan = e.target.closest(".category-name");
+    if (nameSpan && !e.target.closest(".cat-inline-input")) {
+      const catName = nameSpan.textContent;
+      els.transactionCategory.value = catName;
+      toggleBtn.textContent = `${catName} ▼`;
+      dropdown.classList.add("hidden");
+      return;
+    }
+
     // Save inline edit
     const saveBtn = e.target.closest(".cat-save-btn");
     if (saveBtn) {
       const index = parseInt(saveBtn.dataset.index, 10);
-      const input = container.querySelector(`.cat-inline-input[data-index="${index}"]`);
+      const input = dropdown.querySelector(`.cat-inline-input[data-index="${index}"]`);
       if (!input) return;
       const newName = input.value.trim();
       if (!newName) return;
@@ -117,8 +119,12 @@ function wireCategoryManager(els) {
       if (duplicate) { alert(`Category "${newName}" already exists.`); return; }
       cats[index] = newName;
       saveCategories(cats);
-      renderQuickCategories(els);
-      renderCategoryManager();
+      // Update toggle text if currently selected category was renamed
+      if (els.transactionCategory.value === input.dataset.original) {
+        els.transactionCategory.value = newName;
+        toggleBtn.textContent = `${newName} ▼`;
+      }
+      renderCategoryDropdown(els);
       return;
     }
 
@@ -126,16 +132,17 @@ function wireCategoryManager(els) {
     const editBtn = e.target.closest(".cat-edit-btn");
     if (editBtn) {
       const index = parseInt(editBtn.dataset.index, 10);
-      const row = container.querySelector(`.category-row[data-index="${index}"]`);
+      const row = dropdown.querySelector(`.category-row[data-index="${index}"]`);
       if (!row) return;
-      const nameSpan = row.querySelector(".cat-name");
-      const actionsDiv = row.querySelector(".cat-actions");
+      const nameSpan = row.querySelector(".category-name");
+      const actionsDiv = row.querySelector(".category-actions");
       const current = nameSpan.textContent;
 
       const inlineInput = document.createElement("input");
       inlineInput.type = "text";
       inlineInput.className = "cat-inline-input";
       inlineInput.dataset.index = String(index);
+      inlineInput.dataset.original = current;
       inlineInput.value = current;
 
       const saveBtnEl = document.createElement("button");
@@ -161,14 +168,18 @@ function wireCategoryManager(els) {
       if (!window.confirm(`Delete category '${catName}'?`)) return;
       cats.splice(index, 1);
       saveCategories(cats);
-      renderQuickCategories(els);
-      renderCategoryManager();
+      // Clear selection if deleted category was selected
+      if (els.transactionCategory.value === catName) {
+        els.transactionCategory.value = "";
+        toggleBtn.textContent = "Select Category ▼";
+      }
+      renderCategoryDropdown(els);
       return;
     }
 
     // Add new category
-    if (e.target.id === "new-cat-btn") {
-      const addInput = container.querySelector("#new-cat-input");
+    if (e.target.id === "add-category-btn") {
+      const addInput = dropdown.querySelector("#new-category-input");
       if (!addInput) return;
       const name = addInput.value.trim();
       if (!name) return;
@@ -180,17 +191,16 @@ function wireCategoryManager(els) {
       cats.push(name);
       saveCategories(cats);
       addInput.value = "";
-      renderQuickCategories(els);
-      renderCategoryManager();
+      renderCategoryDropdown(els);
       return;
     }
   });
 
   // Enter key on add input — delegated
-  container.addEventListener("keydown", (e) => {
-    if (e.target.id === "new-cat-input" && e.key === "Enter") {
+  dropdown.addEventListener("keydown", (e) => {
+    if (e.target.id === "new-category-input" && e.key === "Enter") {
       e.preventDefault();
-      const addBtn = container.querySelector("#new-cat-btn");
+      const addBtn = dropdown.querySelector("#add-category-btn");
       if (addBtn) addBtn.click();
     }
   });
@@ -203,9 +213,8 @@ export async function initApp() {
   wireExport(els);
 
   // Category system (localStorage-based, no Supabase dependency)
-  renderQuickCategories(els);
-  renderCategoryManager();
-  wireCategoryManager(els);
+  renderCategoryDropdown(els);
+  wireCategoryDropdown(els);
 
   // Show loading state while fetching from Supabase
   showLoadingState(els);
