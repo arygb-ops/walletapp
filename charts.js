@@ -320,7 +320,23 @@ export function initCharts(analytics, transactions = []) {
             maxBarThickness: 40,
             order: 2,
           },
-              ],
+          {
+            label: "Net Balance",
+            data: filteredMonthly.net,
+            type: "line",
+            borderColor: "#60A5FA",
+            backgroundColor: "rgba(96,165,250,0.15)",
+            fill: false,
+            tension: 0.4,
+            pointBackgroundColor: "#93C5FD",
+            pointBorderColor: "#0d1117",
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 7,
+            borderWidth: 2,
+            order: 1,
+          },
+        ],
       },
       options: {
         responsive: true,
@@ -366,7 +382,8 @@ export function initCharts(analytics, transactions = []) {
                 const val = formatCurrency(ctx.parsed.y);
                 if (name === "Income")      return `  Income      ${val}`;
                 if (name === "Expenses")    return `  Expenses   ${val}`;
-                                return `  ${name}: ${val}`;
+                if (name === "Net Balance") return `  Net           ${val}`;
+                return `  ${name}: ${val}`;
               },
             },
           },
@@ -567,7 +584,8 @@ function _applyIncomeVsExpFilter() {
   analyticsMonthlyChart.data.labels = data.labels;
   analyticsMonthlyChart.data.datasets[0].data = data.income;
   analyticsMonthlyChart.data.datasets[1].data = data.expense;
-    analyticsMonthlyChart.update();
+  analyticsMonthlyChart.data.datasets[2].data = data.net;
+  analyticsMonthlyChart.update();
 }
 
 function _initCategoryFilter(analytics) {
