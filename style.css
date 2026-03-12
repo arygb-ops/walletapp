@@ -1134,3 +1134,29 @@ td.tx-actions {
   color: var(--blue);
   border-color: rgba(99,179,237,0.30);
 }
+/* ── Income vs Expenses range selector ──────────────────────── */
+.ive-header { align-items: center; }
+.ive-range-tabs { display: flex; gap: 3px; flex-shrink: 0; }
+.ive-range-btn {
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: 0.70rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+  white-space: nowrap;
+}
+.ive-range-btn:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+  border-color: var(--border-2);
+}
+.ive-range-btn.active {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-color: rgba(99,179,237,0.30);
+}

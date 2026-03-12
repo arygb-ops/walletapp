@@ -291,30 +291,49 @@ export function initCharts(analytics, transactions = []) {
     });
   }
 
-  // ── Income vs Expenses (bar) ────────────────────────────────
+  // ── Income vs Expenses (bar + line) ────────────────────────
   if (analyticsMonthlyCtx) {
+    const filteredMonthly = _filterMonthlyData(transactions, _iveRange);
     analyticsMonthlyChart = new Chart(analyticsMonthlyCtx, {
       type: "bar",
       data: {
-        labels: monthlyData.labels,
+        labels: filteredMonthly.labels,
         datasets: [
           {
             label: "Income",
-            data: monthlyData.income,
+            data: filteredMonthly.income,
             backgroundColor: "#34D399",
             hoverBackgroundColor: "#10B981",
             borderRadius: 6,
             borderSkipped: false,
             maxBarThickness: 40,
+            order: 2,
           },
           {
             label: "Expenses",
-            data: monthlyData.expense,
+            data: filteredMonthly.expense,
             backgroundColor: "#F87171",
             hoverBackgroundColor: "#EF4444",
             borderRadius: 6,
             borderSkipped: false,
             maxBarThickness: 40,
+            order: 2,
+          },
+          {
+            label: "Net Balance",
+            data: filteredMonthly.net,
+            type: "line",
+            borderColor: "#60A5FA",
+            backgroundColor: "rgba(96,165,250,0.15)",
+            fill: false,
+            tension: 0.4,
+            pointBackgroundColor: "#93C5FD",
+            pointBorderColor: "#0d1117",
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 7,
+            borderWidth: 2,
+            order: 1,
           },
         ],
       },
@@ -341,21 +360,37 @@ export function initCharts(analytics, transactions = []) {
               color: "#e2e8f0", usePointStyle: true, boxWidth: 8, padding: 12,
               font: { family: "DM Sans, system-ui, -apple-system, sans-serif", size: 11 },
               generateLabels: (chart) => chart.data.datasets.map((ds, i) => ({
-                text: ds.label, fillStyle: ds.backgroundColor, strokeStyle: ds.backgroundColor,
-                pointStyle: "circle", hidden: !chart.isDatasetVisible(i), datasetIndex: i,
+                text: ds.label,
+                fillStyle: ds.type === "line" ? ds.borderColor : ds.backgroundColor,
+                strokeStyle: ds.type === "line" ? ds.borderColor : ds.backgroundColor,
+                pointStyle: ds.type === "line" ? "line" : "circle",
+                hidden: !chart.isDatasetVisible(i),
+                datasetIndex: i,
               })),
             },
           },
           tooltip: {
             backgroundColor: "rgba(13,17,23,0.97)",
             borderColor: "rgba(96,165,250,0.35)",
-            borderWidth: 1, padding: 10,
+            borderWidth: 1, padding: 12,
             titleColor: "#e2e8f0", bodyColor: "#94a3b8",
-            callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}` },
+            callbacks: {
+              title: (items) => items[0]?.label ?? "",
+              label: (ctx) => {
+                const name = ctx.dataset.label;
+                const val = formatCurrency(ctx.parsed.y);
+                if (name === "Income")      return `  Income      ${val}`;
+                if (name === "Expenses")    return `  Expenses   ${val}`;
+                if (name === "Net Balance") return `  Net           ${val}`;
+                return `  ${name}: ${val}`;
+              },
+            },
           },
         },
       },
     });
+
+    _initIncomeVsExpFilter();
   }
 
   // ── Spending by Category (donut) ────────────────────────────
@@ -491,6 +526,66 @@ export function initCharts(analytics, transactions = []) {
 let _catFilterYear  = null;
 let _catFilterMonth = null;
 let _cachedAnalytics = null;
+
+// ── Income vs Expenses range filter state ────────────────────
+let _iveRange = "All";
+
+/** Build monthly grouped data from raw transactions, limited by range. */
+function _filterMonthlyData(transactions, range) {
+  const now = new Date();
+  let cutoff = null;
+  if (range === "3M") {
+    cutoff = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+  } else if (range === "6M") {
+    cutoff = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  } else if (range === "12M") {
+    cutoff = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  }
+
+  const byMonth = {};
+  for (const tx of (transactions || [])) {
+    if (!tx.date) continue;
+    const monthKey = tx.date.slice(0, 7); // "YYYY-MM"
+    if (cutoff) {
+      const [y, m] = monthKey.split("-").map(Number);
+      if (new Date(y, m - 1, 1) < cutoff) continue;
+    }
+    if (!byMonth[monthKey]) byMonth[monthKey] = { income: 0, expense: 0 };
+    if (tx.type === "income") byMonth[monthKey].income += tx.amount || 0;
+    else if (tx.type === "expense") byMonth[monthKey].expense += tx.amount || 0;
+  }
+
+  const keys = Object.keys(byMonth).sort();
+  const income  = keys.map((k) => Math.round((byMonth[k].income  || 0) * 100) / 100);
+  const expense = keys.map((k) => Math.round((byMonth[k].expense || 0) * 100) / 100);
+  const net     = keys.map((k) => Math.round(((byMonth[k].income || 0) - (byMonth[k].expense || 0)) * 100) / 100);
+  return { labels: keys, income, expense, net };
+}
+
+/** Wire up the range selector buttons for the Income vs Expenses chart. */
+function _initIncomeVsExpFilter() {
+  const tabs = document.getElementById("ive-range-tabs");
+  if (!tabs) return;
+
+  tabs.querySelectorAll(".ive-range-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      _iveRange = btn.dataset.range;
+      tabs.querySelectorAll(".ive-range-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      _applyIncomeVsExpFilter();
+    });
+  });
+}
+
+function _applyIncomeVsExpFilter() {
+  if (!analyticsMonthlyChart) return;
+  const data = _filterMonthlyData(_rawTransactions, _iveRange);
+  analyticsMonthlyChart.data.labels = data.labels;
+  analyticsMonthlyChart.data.datasets[0].data = data.income;
+  analyticsMonthlyChart.data.datasets[1].data = data.expense;
+  analyticsMonthlyChart.data.datasets[2].data = data.net;
+  analyticsMonthlyChart.update();
+}
 
 function _initCategoryFilter(analytics) {
   _cachedAnalytics = analytics;
@@ -631,10 +726,7 @@ export function updateCharts(analytics, transactions = []) {
   }
 
   if (analyticsMonthlyChart) {
-    analyticsMonthlyChart.data.labels = monthlyData.labels;
-    analyticsMonthlyChart.data.datasets[0].data = monthlyData.income;
-    analyticsMonthlyChart.data.datasets[1].data = monthlyData.expense;
-    analyticsMonthlyChart.update();
+    _applyIncomeVsExpFilter();
   }
 
   if (analyticsCategoryChart) {
