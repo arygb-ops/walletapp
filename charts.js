@@ -1,4 +1,5 @@
 // Chart.js integration and updates
+let liveRange = "ALL";
 
 import { formatCurrency } from "./utils.js";
 
