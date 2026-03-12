@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wallet — Personal Finance Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .analytics-grid--full { grid-column: 1 / -1; }
+    .chart-wrap-xl { height: 340px !important; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  
+</head>
+<body data-theme="dark">
+
+  <!-- ═══════════════════════ SIDEBAR NAV ═══════════════════════ -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">
+        <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+          <rect x="1" y="1" width="9" height="9" rx="2.5" fill="currentColor" opacity=".95"/>
+          <rect x="12" y="1" width="9" height="9" rx="2.5" fill="currentColor" opacity=".55"/>
+          <rect x="1" y="12" width="9" height="9" rx="2.5" fill="currentColor" opacity=".55"/>
+          <rect x="12" y="12" width="9" height="9" rx="2.5" fill="currentColor" opacity=".25"/>
+        </svg>
+      </div>
+      <span class="brand-name">Wallet</span>
+    </div>
+
+    <ul class="nav-links">
+      <li class="nav-item active" data-section="dashboard">
+        <span class="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
+        <span class="nav-label">Dashboard</span>
+      </li>
+      <li class="nav-item" data-section="accounts">
+        <span class="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span>
+        <span class="nav-label">Accounts</span>
+      </li>
+      <li class="nav-item" data-section="records">
+        <span class="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg></span>
+        <span class="nav-label">Records</span>
+      </li>
+      <li class="nav-item" data-section="analytics">
+        <span class="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+        <span class="nav-label">Analytics</span>
+      </li>
+      <li class="nav-item" data-section="investments">
+        <span class="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+        <span class="nav-label">Investments</span>
+      </li>
+      <li class="nav-item" data-section="imports">
+        <span class="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+        <span class="nav-label">Imports</span>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <button id="theme-toggle" class="theme-toggle-btn" type="button" aria-label="Toggle theme">
+        <span class="icon-moon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+        <span class="icon-sun"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></span>
+      </button>
+      <div class="user-avatar" title="Local user">JD</div>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════ MAIN CANVAS ═══════════════════════ -->
+  <div class="main-canvas">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <span class="topbar-page-label" id="breadcrumb-label">Dashboard</span>
+      </div>
+      <div class="topbar-right">
+        <div class="export-menu">
+          <button id="export-button" class="topbar-ghost-btn" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+          <div class="export-menu-panel" id="export-menu-panel">
+            <button type="button" data-export="csv">Export CSV</button>
+            <button type="button" data-export="json">Export JSON</button>
+          </div>
+        </div>
+        <button class="add-record-btn" id="add-record-btn" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Record
+        </button>
+      </div>
+    </header>
+
+    <!-- ══ DASHBOARD SECTION ══ -->
+    <section class="page-section active" id="section-dashboard">
+      <div class="page-content">
+        <!-- KPI cards -->
+        <div class="kpi-row">
+          <div class="card kpi-card">
+            <div class="kpi-icon-wrap kpi-icon-blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+            </div>
+            <div class="kpi-body">
+              <span class="kpi-label">Total Balance</span>
+              <span class="kpi-value js-currency" id="total-balance">—</span>
+            </div>
+            <span class="kpi-badge badge-neutral"><span id="wallet-count">0</span> wallets</span>
+          </div>
+          <div class="card kpi-card">
+            <div class="kpi-icon-wrap kpi-icon-green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            </div>
+            <div class="kpi-body">
+              <span class="kpi-label">Total Income</span>
+              <span class="kpi-value kpi-positive js-currency" id="total-income">—</span>
+            </div>
+            <span class="kpi-badge badge-green">↑ Cash in</span>
+          </div>
+          <div class="card kpi-card">
+            <div class="kpi-icon-wrap kpi-icon-red">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+            </div>
+            <div class="kpi-body">
+              <span class="kpi-label">Total Expenses</span>
+              <span class="kpi-value kpi-negative js-currency" id="total-expenses">—</span>
+            </div>
+            <span class="kpi-badge badge-red">↓ Cash out</span>
+          </div>
+          <div class="card kpi-card">
+            <div class="kpi-icon-wrap kpi-icon-purple">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div class="kpi-body">
+              <span class="kpi-label">Net Flow</span>
+              <span class="kpi-value js-currency" id="net-balance">—</span>
+            </div>
+            <span class="kpi-badge badge-neutral">Income − Expenses</span>
+          </div>
+        </div>
+
+        <!-- Hidden elements required by JS analytics rendering -->
+        <span style="display:none" id="sum-bank"></span>
+        <span style="display:none" id="sum-cash"></span>
+        <span style="display:none" id="sum-crypto"></span>
+        <span style="display:none" id="sum-other"></span>
+        <span style="display:none" id="avg-balance"></span>
+
+        <!-- Smart Insight Banner -->
+        <div id="insight-banner" style="display:none; align-items:center; gap:12px; margin-top:20px; padding:14px 18px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); border-radius:10px; color:#E6EDF3; font-size:13.5px; line-height:1.5;">
+          <span style="font-size:17px; flex-shrink:0;">💡</span>
+          <span id="insight-banner-text"></span>
+        </div>
+
+        <!-- Monthly Summary -->
+        <div class="card panel" id="monthly-summary-card" style="margin-top: 20px;">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <h3 class="panel-title">Monthly Summary</h3>
+              <span class="panel-sub" id="monthly-summary-label"></span>
+            </div>
+          </div>
+          <div class="monthly-summary-grid">
+            <div class="monthly-summary-cell">
+              <span class="monthly-summary-cell-label">Income</span>
+              <span class="monthly-summary-cell-value kpi-positive" id="summary-income">—</span>
+            </div>
+            <div class="monthly-summary-cell">
+              <span class="monthly-summary-cell-label">Expenses</span>
+              <span class="monthly-summary-cell-value kpi-negative" id="summary-expense">—</span>
+            </div>
+            <div class="monthly-summary-cell">
+              <span class="monthly-summary-cell-label">Saved</span>
+              <span class="monthly-summary-cell-value" id="summary-saved">—</span>
+            </div>
+            <div class="monthly-summary-cell">
+              <span class="monthly-summary-cell-label">Savings Rate</span>
+              <span class="monthly-summary-cell-value" id="summary-rate">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Records -->
+        <div class="card panel" style="margin-top: 24px;">
+          <div class="panel-header">
+            <h3 class="panel-title">Recent Records</h3>
+            <button class="panel-text-link" data-goto="records">View all →</button>
+          </div>
+          <div id="recent-transactions-list" class="recent-tx-list">
+            <div class="empty-sm">No records yet</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ ACCOUNTS SECTION ══ -->
+    <section class="page-section" id="section-accounts">
+      <div class="page-content">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Accounts</h2>
+            <p class="section-sub">Manage wallets and starting balances</p>
+          </div>
+        </div>
+
+        <div class="account-cards" id="wallet-list"><!-- rendered by JS --></div>
+
+        <div class="card panel form-panel">
+          <div class="panel-header">
+            <h3 class="panel-title" id="wallet-form-title">Add Account</h3>
+          </div>
+          <form id="wallet-form" class="modern-form">
+            <input type="hidden" id="wallet-id" />
+            <div class="form-grid">
+              <div class="field">
+                <label for="wallet-name">Name</label>
+                <input id="wallet-name" type="text" placeholder="e.g. Main Bank, Cash, BTC" required />
+              </div>
+              <div class="field">
+                <label for="wallet-type">Type</label>
+                <select id="wallet-type">
+                  <option value="bank">🏦  Bank</option>
+                  <option value="cash">💵  Cash</option>
+                  <option value="crypto">🪙  Crypto</option>
+                  <option value="other">📁  Other</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="wallet-balance">Starting balance</label>
+                <input id="wallet-balance" type="number" step="0.01" placeholder="0.00" required />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" id="wallet-submit-button">Save account</button>
+              <button type="button" class="ghost-btn" id="wallet-cancel-edit">Cancel</button>
+              <span class="form-error" id="wallet-error"></span>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ RECORDS SECTION ══ -->
+    <section class="page-section" id="section-records">
+      <div class="page-content">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Records</h2>
+            <p class="section-sub">Track income and expenses per account</p>
+          </div>
+        </div>
+
+        <div class="card panel form-panel">
+          <div class="panel-header">
+            <h3 class="panel-title">New Record</h3>
+          </div>
+          <form id="transaction-form" class="modern-form">
+            <div class="form-grid">
+              <div class="field">
+                <label for="transaction-wallet">Account</label>
+                <select id="transaction-wallet" required></select>
+              </div>
+              <div class="field">
+                <label for="transaction-type">Type</label>
+                <select id="transaction-type">
+                  <option value="income">↑  Income</option>
+                  <option value="expense">↓  Expense</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="transaction-amount">Amount</label>
+                <input id="transaction-amount" type="number" step="0.01" placeholder="0.00" required />
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="transaction-category">Category</label>
+                <input id="transaction-category" type="text" placeholder="e.g. Groceries, Salary" required />
+              </div>
+              <div class="field">
+                <label for="transaction-date">Date</label>
+                <input id="transaction-date" type="date" required />
+              </div>
+              <div class="field">
+                <label for="transaction-note">Note (optional)</label>
+                <input id="transaction-note" type="text" placeholder="Optional note" />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Add record</button>
+              <span class="form-error" id="transaction-error"></span>
+            </div>
+          </form>
+        </div>
+
+        <div class="card panel">
+          <div class="panel-header">
+            <h3 class="panel-title">All Records</h3>
+          </div>
+          <div class="filter-bar">
+            <div class="field">
+              <label for="filter-wallet">Account</label>
+              <select id="filter-wallet"><option value="">All</option></select>
+            </div>
+            <div class="field">
+              <label for="filter-type">Type</label>
+              <select id="filter-type">
+                <option value="">All</option>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="filter-category">Category</label>
+              <input id="filter-category" type="text" placeholder="Search…" />
+            </div>
+            <div class="field">
+              <label for="filter-date-from">From</label>
+              <input id="filter-date-from" type="date" />
+            </div>
+            <div class="field">
+              <label for="filter-date-to">To</label>
+              <input id="filter-date-to" type="date" />
+            </div>
+          </div>
+
+          <div class="transactions-table-wrapper">
+            <table class="transactions-table" id="transactions-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Account</th>
+                  <th>Type</th>
+                  <th>Category</th>
+                  <th class="align-right">Amount</th>
+                  <th>Note</th>
+                  <th class="tx-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="transactions-tbody"></tbody>
+            </table>
+            <div class="transactions-empty" id="transactions-empty">No records yet.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ ANALYTICS SECTION ══ -->
+    <section class="page-section" id="section-analytics">
+      <div class="page-content">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Analytics</h2>
+            <p class="section-sub">Deep dive into your financial patterns</p>
+          </div>
+        </div>
+
+        <!-- Row 1: Net Worth Trend (full width) -->
+        <div class="analytics-grid">
+          <div class="card panel analytics-grid--full">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <h3 class="panel-title">Net Worth Trend</h3>
+                <span class="panel-sub">Total balance growth over time</span>
+              </div>
+            </div>
+            <div class="chart-wrap-tall chart-wrap-xl"><canvas id="chart-networth"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Row 2: Income vs Expenses + Spending by Category -->
+        <div class="analytics-grid">
+          <div class="card panel">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <h3 class="panel-title">Income vs Expenses</h3>
+                <span class="panel-sub">Monthly comparison</span>
+              </div>
+            </div>
+            <div class="chart-wrap-tall"><canvas id="chart-monthly-2"></canvas></div>
+          </div>
+          <div class="card panel">
+            <div class="panel-header cat-filter-header">
+              <div class="panel-title-group">
+                <div class="cat-header-top">
+                  <h3 class="panel-title">Spending by Category</h3>
+                  <select id="cat-year-select" class="cat-year-select"></select>
+                </div>
+                <div class="cat-month-tabs" id="cat-month-tabs">
+                  <button class="cat-month-btn" data-month="01">Jan</button>
+                  <button class="cat-month-btn" data-month="02">Feb</button>
+                  <button class="cat-month-btn" data-month="03">Mar</button>
+                  <button class="cat-month-btn" data-month="04">Apr</button>
+                  <button class="cat-month-btn" data-month="05">May</button>
+                  <button class="cat-month-btn" data-month="06">Jun</button>
+                  <button class="cat-month-btn" data-month="07">Jul</button>
+                  <button class="cat-month-btn" data-month="08">Aug</button>
+                  <button class="cat-month-btn" data-month="09">Sep</button>
+                  <button class="cat-month-btn" data-month="10">Oct</button>
+                  <button class="cat-month-btn" data-month="11">Nov</button>
+                  <button class="cat-month-btn" data-month="12">Dec</button>
+                </div>
+                <span class="panel-sub">Where your money goes</span>
+              </div>
+            </div>
+            <div class="chart-wrap-tall" style="position:relative;"><canvas id="chart-category-2"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Row 3: Savings Rate (full width) -->
+        <div class="analytics-grid">
+          <div class="card panel analytics-grid--full">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <h3 class="panel-title">Savings Rate</h3>
+                <span class="panel-sub">Percentage of income saved each month</span>
+              </div>
+            </div>
+            <div class="chart-wrap-tall chart-wrap-xl"><canvas id="chart-savings-rate"></canvas></div>
+          </div>
+        </div>
+
+        <p class="footer-note">Transaction data is stored in Supabase. Wallet accounts are saved locally in your browser.</p>
+      </div>
+    </section>
+
+    <!-- ══ INVESTMENTS PLACEHOLDER ══ -->
+    <section class="page-section" id="section-investments">
+      <div class="page-content">
+        <div class="placeholder-screen">
+          <div class="placeholder-glyph">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <h2 class="placeholder-title">Investments</h2>
+          <p class="placeholder-sub">Portfolio tracking coming soon.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ IMPORTS PLACEHOLDER ══ -->
+    <section class="page-section" id="section-imports">
+      <div class="page-content">
+        <div class="placeholder-screen">
+          <div class="placeholder-glyph">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <h2 class="placeholder-title">Imports</h2>
+          <p class="placeholder-sub">Bank statement imports coming soon.</p>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /main-canvas -->
+
+  <!-- ══ QUICK-ADD MODAL ══ -->
+  <div class="modal-backdrop" id="modal-backdrop"></div>
+  <div class="quick-modal" id="quick-modal" aria-hidden="true">
+    <div class="qm-header">
+      <h3 class="qm-title">Quick Record</h3>
+      <button class="modal-close" id="modal-close" type="button" aria-label="Close">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <p class="qm-hint">Go to Records to add a new transaction to your account.</p>
+    <button class="primary-btn btn-full" id="modal-goto-records" type="button">Open Records →</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module" src="main.js"></script>
+  <script>
+    (function () {
+      const navItems = document.querySelectorAll('.nav-item[data-section]');
+      const sections = document.querySelectorAll('.page-section');
+      const breadcrumb = document.getElementById('breadcrumb-label');
+
+      function switchSection(name) {
+        navItems.forEach(n => n.classList.toggle('active', n.dataset.section === name));
+        sections.forEach(s => s.classList.toggle('active', s.id === 'section-' + name));
+        if (breadcrumb) breadcrumb.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+        // Close mobile sidebar on nav
+        document.querySelector('.sidebar')?.classList.remove('open');
+      }
+
+      navItems.forEach(item => item.addEventListener('click', () => switchSection(item.dataset.section)));
+
+      document.addEventListener('click', e => {
+        const btn = e.target.closest('[data-goto]');
+        if (btn) switchSection(btn.dataset.goto);
+      });
+
+      // Modal
+      const addBtn = document.getElementById('add-record-btn');
+      const backdrop = document.getElementById('modal-backdrop');
+      const modal = document.getElementById('quick-modal');
+      const closeBtn = document.getElementById('modal-close');
+      const gotoRec = document.getElementById('modal-goto-records');
+
+      function openModal() { backdrop.classList.add('visible'); modal.classList.add('visible'); modal.removeAttribute('aria-hidden'); }
+      function closeModal() { backdrop.classList.remove('visible'); modal.classList.remove('visible'); modal.setAttribute('aria-hidden', 'true'); }
+
+      addBtn?.addEventListener('click', openModal);
+      closeBtn?.addEventListener('click', closeModal);
+      backdrop?.addEventListener('click', closeModal);
+      gotoRec?.addEventListener('click', () => { closeModal(); switchSection('records'); });
+
+      // Sidebar mobile toggle
+      document.getElementById('sidebar-toggle')?.addEventListener('click', () => {
+        document.querySelector('.sidebar')?.classList.toggle('open');
+      });
+    })();
+  </script>
+</body>
+</html>
