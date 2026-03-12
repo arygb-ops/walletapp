@@ -1160,3 +1160,103 @@ td.tx-actions {
   color: var(--blue);
   border-color: rgba(99,179,237,0.30);
 }
+
+/* ── Quick Category Buttons ──────────────────────────────────── */
+.quick-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.cat-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-2);
+  font-family: inherit;
+  transition: background var(--transition), color var(--transition);
+}
+.cat-btn:hover {
+  background: rgba(96,165,250,0.15);
+  color: var(--text-1);
+}
+
+/* ── Category Manager ────────────────────────────────────────── */
+#category-manager {
+  margin-top: 16px;
+}
+.category-manager {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.category-manager-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 12px;
+  letter-spacing: 0.01em;
+}
+.category-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+.cat-name {
+  color: var(--text-2);
+  font-size: 0.85rem;
+}
+.cat-actions {
+  display: flex;
+  gap: 6px;
+}
+.cat-edit-btn,
+.cat-delete-btn,
+.cat-save-btn,
+.cat-add-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-3);
+  font-family: inherit;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+.cat-edit-btn:hover  { background: var(--blue-dim);  color: var(--blue);  border-color: var(--border-hi); }
+.cat-delete-btn:hover { background: var(--red-dim);   color: var(--red);   border-color: rgba(248,113,113,0.3); }
+.cat-save-btn:hover  { background: var(--green-dim); color: var(--green); border-color: rgba(52,211,153,0.3); }
+.cat-add-btn:hover   { background: var(--blue-dim);  color: var(--blue);  border-color: var(--border-hi); }
+.cat-add-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.cat-input {
+  flex: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--text-1);
+  font-family: inherit;
+  transition: border-color var(--transition);
+}
+.cat-input:focus { outline: none; border-color: var(--border-hi); }
+.cat-inline-input {
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  color: var(--text-1);
+  font-family: inherit;
+  width: 130px;
+  transition: border-color var(--transition);
+}
+.cat-inline-input:focus { outline: none; border-color: var(--border-hi); }
