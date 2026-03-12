@@ -105,3 +105,89 @@ export async function updateTransaction(id, updatedData) {
     return { data: null, error };
   }
 }
+
+// ── Categories ────────────────────────────────────────────────
+const CAT_TABLE = "categories";
+
+/**
+ * Fetch all categories ordered by name.
+ * @returns {{ data: Array|null, error: object|null }}
+ */
+export async function getCategories() {
+  try {
+    const { data, error } = await supabase
+      .from(CAT_TABLE)
+      .select("*")
+      .order("name");
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error("[getCategories]", error.message);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Insert a new category row.
+ * @param {string} name
+ * @returns {{ data: object|null, error: object|null }}
+ */
+export async function insertCategory(name) {
+  try {
+    const { data, error } = await supabase
+      .from(CAT_TABLE)
+      .insert([{ name }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error("[insertCategory]", error.message);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Update a category's name by id.
+ * @param {string} id
+ * @param {string} newName
+ * @returns {{ data: object|null, error: object|null }}
+ */
+export async function updateCategory(id, newName) {
+  try {
+    const { data, error } = await supabase
+      .from(CAT_TABLE)
+      .update({ name: newName })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error("[updateCategory]", error.message);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Delete a category by id.
+ * @param {string} id
+ * @returns {{ error: object|null }}
+ */
+export async function deleteCategory(id) {
+  try {
+    const { error } = await supabase
+      .from(CAT_TABLE)
+      .delete()
+      .eq("id", id);
+
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error("[deleteCategory]", error.message);
+    return { error };
+  }
+}

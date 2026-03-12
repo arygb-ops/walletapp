@@ -17,18 +17,17 @@ import {
   updateWallet,
 } from "./services.js";
 
+import {
+  getCategories,
+  insertCategory,
+  updateCategory,
+  deleteCategory,
+} from "./supabase.js";
+
 import { downloadFile, formatCurrency, generateInsights, toCSV, todayISO } from "./utils.js";
 import { initCharts, updateCharts } from "./charts.js";
 
 // ── Category System ───────────────────────────────────────────
-
-const DEFAULT_CATEGORIES = [
-  "Food", "Groceries", "Transport", "Taxi", "Fuel",
-  "Shopping", "Clothing", "Entertainment", "Subscriptions", "Coffee",
-  "Restaurants", "Health", "Pharmacy", "Gym", "Education",
-  "Books", "Work", "Salary", "Freelance", "Savings",
-  "Investments", "Rent", "Utilities", "Travel", "Gifts",
-];
 
 function escapeHtml(str) {
   return str
@@ -39,31 +38,31 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-function loadCategories() {
-  try {
-    const stored = localStorage.getItem("wallet_categories");
-    if (stored) return JSON.parse(stored);
-  } catch (e) { /* ignore */ }
-  return [...DEFAULT_CATEGORIES];
+// In-memory cache of category rows fetched from Supabase
+let _categoryCache = [];
+
+async function loadCategories() {
+  const { data, error } = await getCategories();
+  if (error) {
+    console.error("[categories] Failed to load:", error.message ?? error);
+    return;
+  }
+  _categoryCache = data || [];
+  renderCategories(_categoryCache);
 }
 
-function saveCategories(cats) {
-  localStorage.setItem("wallet_categories", JSON.stringify(cats));
-}
-
-function renderCategoryDropdown(els) {
+function renderCategories(categories) {
   const dropdown = document.getElementById("category-dropdown");
   if (!dropdown) return;
-  const cats = loadCategories();
   dropdown.innerHTML =
-    cats
+    categories
       .map(
-        (cat, i) => `
-      <div class="category-row" data-index="${i}">
-        <span class="category-name">${escapeHtml(cat)}</span>
+        (cat) => `
+      <div class="category-row" data-id="${escapeHtml(String(cat.id))}">
+        <span class="category-name">${escapeHtml(cat.name)}</span>
         <div class="category-actions">
-          <button type="button" class="cat-edit-btn" data-index="${i}" title="Edit">✏</button>
-          <button type="button" class="cat-delete-btn" data-index="${i}" title="Delete">🗑</button>
+          <button type="button" class="cat-edit-btn" data-id="${escapeHtml(String(cat.id))}" title="Edit">✏</button>
+          <button type="button" class="cat-delete-btn" data-id="${escapeHtml(String(cat.id))}" title="Delete">🗑</button>
         </div>
       </div>`
       )
@@ -95,7 +94,7 @@ function wireCategoryDropdown(els) {
   });
 
   // All dropdown interactions — event delegation
-  dropdown.addEventListener("click", (e) => {
+  dropdown.addEventListener("click", async (e) => {
     // Select category by clicking name
     const nameSpan = e.target.closest(".category-name");
     if (nameSpan && !e.target.closest(".cat-inline-input")) {
@@ -109,30 +108,31 @@ function wireCategoryDropdown(els) {
     // Save inline edit
     const saveBtn = e.target.closest(".cat-save-btn");
     if (saveBtn) {
-      const index = parseInt(saveBtn.dataset.index, 10);
-      const input = dropdown.querySelector(`.cat-inline-input[data-index="${index}"]`);
+      const id = saveBtn.dataset.id;
+      const input = dropdown.querySelector(`.cat-inline-input[data-id="${id}"]`);
       if (!input) return;
       const newName = input.value.trim();
       if (!newName) return;
-      const cats = loadCategories();
-      const duplicate = cats.some((c, i) => i !== index && c.toLowerCase() === newName.toLowerCase());
+      const duplicate = _categoryCache.some(
+        (c) => String(c.id) !== id && c.name.toLowerCase() === newName.toLowerCase()
+      );
       if (duplicate) { alert(`Category "${newName}" already exists.`); return; }
-      cats[index] = newName;
-      saveCategories(cats);
+      const { error } = await updateCategory(id, newName);
+      if (error) { alert("Failed to update category."); return; }
       // Update toggle text if currently selected category was renamed
       if (els.transactionCategory.value === input.dataset.original) {
         els.transactionCategory.value = newName;
         toggleBtn.textContent = `${newName} ▼`;
       }
-      renderCategoryDropdown(els);
+      await loadCategories();
       return;
     }
 
     // Open inline edit — use DOM API to avoid XSS via value attribute
     const editBtn = e.target.closest(".cat-edit-btn");
     if (editBtn) {
-      const index = parseInt(editBtn.dataset.index, 10);
-      const row = dropdown.querySelector(`.category-row[data-index="${index}"]`);
+      const id = editBtn.dataset.id;
+      const row = dropdown.querySelector(`.category-row[data-id="${id}"]`);
       if (!row) return;
       const nameSpan = row.querySelector(".category-name");
       const actionsDiv = row.querySelector(".category-actions");
@@ -141,14 +141,14 @@ function wireCategoryDropdown(els) {
       const inlineInput = document.createElement("input");
       inlineInput.type = "text";
       inlineInput.className = "cat-inline-input";
-      inlineInput.dataset.index = String(index);
+      inlineInput.dataset.id = id;
       inlineInput.dataset.original = current;
       inlineInput.value = current;
 
       const saveBtnEl = document.createElement("button");
       saveBtnEl.type = "button";
       saveBtnEl.className = "cat-save-btn";
-      saveBtnEl.dataset.index = String(index);
+      saveBtnEl.dataset.id = id;
       saveBtnEl.textContent = "Save";
 
       nameSpan.textContent = "";
@@ -162,18 +162,18 @@ function wireCategoryDropdown(els) {
     // Delete category
     const deleteBtn = e.target.closest(".cat-delete-btn");
     if (deleteBtn) {
-      const index = parseInt(deleteBtn.dataset.index, 10);
-      const cats = loadCategories();
-      const catName = cats[index];
-      if (!window.confirm(`Delete category '${catName}'?`)) return;
-      cats.splice(index, 1);
-      saveCategories(cats);
+      const id = deleteBtn.dataset.id;
+      const cat = _categoryCache.find((c) => String(c.id) === id);
+      if (!cat) return;
+      if (!window.confirm(`Delete category '${cat.name}'?`)) return;
+      const { error } = await deleteCategory(id);
+      if (error) { alert("Failed to delete category."); return; }
       // Clear selection if deleted category was selected
-      if (els.transactionCategory.value === catName) {
+      if (els.transactionCategory.value === cat.name) {
         els.transactionCategory.value = "";
         toggleBtn.textContent = "Select Category ▼";
       }
-      renderCategoryDropdown(els);
+      await loadCategories();
       return;
     }
 
@@ -183,15 +183,14 @@ function wireCategoryDropdown(els) {
       if (!addInput) return;
       const name = addInput.value.trim();
       if (!name) return;
-      const cats = loadCategories();
-      if (cats.some((c) => c.toLowerCase() === name.toLowerCase())) {
+      if (_categoryCache.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
         alert(`Category "${name}" already exists.`);
         return;
       }
-      cats.push(name);
-      saveCategories(cats);
+      const { error } = await insertCategory(name);
+      if (error) { alert("Failed to add category."); return; }
       addInput.value = "";
-      renderCategoryDropdown(els);
+      await loadCategories();
       return;
     }
   });
@@ -212,9 +211,9 @@ export async function initApp() {
   wireThemeToggle(els);
   wireExport(els);
 
-  // Category system (localStorage-based, no Supabase dependency)
-  renderCategoryDropdown(els);
+  // Category system (Supabase-backed)
   wireCategoryDropdown(els);
+  await loadCategories();
 
   // Show loading state while fetching from Supabase
   showLoadingState(els);
