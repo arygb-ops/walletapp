@@ -373,10 +373,16 @@
         <!-- Row 2: Income vs Expenses + Spending by Category -->
         <div class="analytics-grid">
           <div class="card panel">
-            <div class="panel-header">
+            <div class="panel-header ive-header">
               <div class="panel-title-group">
                 <h3 class="panel-title">Income vs Expenses</h3>
                 <span class="panel-sub">Monthly comparison</span>
+              </div>
+              <div class="ive-range-tabs" id="ive-range-tabs">
+                <button class="ive-range-btn" data-range="3M">3M</button>
+                <button class="ive-range-btn" data-range="6M">6M</button>
+                <button class="ive-range-btn" data-range="12M">12M</button>
+                <button class="ive-range-btn active" data-range="All">All</button>
               </div>
             </div>
             <div class="chart-wrap-tall"><canvas id="chart-monthly-2"></canvas></div>
