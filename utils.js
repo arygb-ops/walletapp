@@ -83,6 +83,147 @@ export function toCSV(rows, { includeHeader = true } = {}) {
   return lines.join("\n");
 }
 
+// ── CSV Import helpers ────────────────────────────────────────
+
+/**
+ * Keyword-to-category mapping for automatic category detection.
+ * Keys are lowercase substrings; values are display category names.
+ */
+const CATEGORY_KEYWORDS = {
+  coffee:     "Coffee",
+  cafe:       "Coffee",
+  starbucks:  "Coffee",
+  uber:       "Taxi",
+  lyft:       "Taxi",
+  taxi:       "Taxi",
+  bolt:       "Taxi",
+  shell:      "Fuel",
+  fuel:       "Fuel",
+  petrol:     "Fuel",
+  gas:        "Fuel",
+  amazon:     "Shopping",
+  shopping:   "Shopping",
+  mall:       "Shopping",
+  ebay:       "Shopping",
+  restaurant: "Restaurants",
+  burger:     "Restaurants",
+  pizza:      "Restaurants",
+  kfc:        "Restaurants",
+  mcdonald:   "Restaurants",
+  sushi:      "Restaurants",
+  salary:     "Salary",
+  payroll:    "Salary",
+  paycheck:   "Salary",
+  netflix:    "Entertainment",
+  spotify:    "Entertainment",
+  cinema:     "Entertainment",
+  gym:        "Health",
+  pharmacy:   "Health",
+  hospital:   "Health",
+  doctor:     "Health",
+  rent:       "Rent",
+  mortgage:   "Rent",
+  electric:   "Utilities",
+  water:      "Utilities",
+  internet:   "Utilities",
+  phone:      "Utilities",
+};
+
+/**
+ * Detect a category from a description string using keyword matching.
+ * Returns "Other" when no keyword matches.
+ * @param {string} description
+ * @returns {string}
+ */
+export function detectCategory(description) {
+  if (!description) return "Other";
+  const lower = String(description).toLowerCase();
+  for (const [keyword, category] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (lower.includes(keyword)) return category;
+  }
+  return "Other";
+}
+
+/**
+ * Parse a CSV text string into an array of transaction objects.
+ * Expected columns (case-insensitive): Date, Description, Amount
+ * Any row with an invalid date or non-numeric amount is skipped.
+ * @param {string} text  — raw CSV content
+ * @returns {{ transactions: Array, errors: string[] }}
+ */
+export function parseCSVText(text) {
+  const transactions = [];
+  const errors = [];
+
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2) {
+    errors.push("File is empty or contains no data rows.");
+    return { transactions, errors };
+  }
+
+  // Parse a single CSV line respecting quoted fields
+  function parseLine(line) {
+    const fields = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === "," && !inQuotes) {
+        fields.push(current);
+        current = "";
+      } else {
+        current += ch;
+      }
+    }
+    fields.push(current);
+    return fields.map((f) => f.trim());
+  }
+
+  const headers = parseLine(lines[0]).map((h) => h.toLowerCase());
+
+  const dateIdx   = headers.findIndex((h) => h === "date");
+  const descIdx   = headers.findIndex((h) => ["description", "desc", "title", "name"].includes(h));
+  const amountIdx = headers.findIndex((h) => h === "amount");
+
+  if (dateIdx === -1)   errors.push("Missing required column: Date");
+  if (amountIdx === -1) errors.push("Missing required column: Amount");
+
+  if (errors.length) return { transactions, errors };
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseLine(lines[i]);
+    const rawDate   = cols[dateIdx]   ?? "";
+    const rawAmount = cols[amountIdx] ?? "";
+    const rawDesc   = descIdx !== -1 ? (cols[descIdx] ?? "") : "";
+
+    const amount = parseNumber(rawAmount);
+    if (!Number.isFinite(amount)) {
+      errors.push(`Row ${i + 1}: invalid amount "${rawAmount}" — skipped.`);
+      continue;
+    }
+
+    // Accept various date formats; fall back to rawDate if parsing fails
+    const parsedDate = new Date(rawDate);
+    const date = (!rawDate || isNaN(parsedDate.getTime()))
+      ? todayISO()
+      : parsedDate.toISOString().slice(0, 10);
+
+    const category = detectCategory(rawDesc);
+    const type     = amount < 0 ? "expense" : "income";
+
+    transactions.push({ date, category, amount: Math.abs(amount), type });
+  }
+
+  return { transactions, errors };
+}
+
 /**
  * Generate smart financial insights from analytics data.
  * Returns an array of insight strings (may be empty).

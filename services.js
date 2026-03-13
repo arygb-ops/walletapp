@@ -8,6 +8,7 @@ import {
   addTransaction    as sbAddTransaction,
   deleteTransaction as sbDeleteTransaction,
   updateTransaction as sbUpdateTransaction,
+  bulkInsertTransactions as sbBulkInsertTransactions,
 } from "./supabase.js";
 
 import {
@@ -337,6 +338,36 @@ export async function updateTransaction(id, { amount, category, date, note, type
   Object.assign(tx, normalizeTx({ ...data, walletId: tx.walletId }));
 
   return { transaction: deepClone(tx), wallet: deepClone(wallet) };
+}
+
+// ── Import ────────────────────────────────────────────────────
+
+/**
+ * Bulk-insert parsed transactions from a file import.
+ * Each row must have: { date, category, amount, type }
+ * Returns { imported: number, error }.
+ */
+export async function importTransactions(rows) {
+  if (!rows || !rows.length) return { imported: 0, error: "No transactions to import." };
+
+  const dbRows = rows.map((r) => ({
+    title:    r.category,
+    amount:   r.amount,
+    category: r.category,
+    type:     r.type,
+    date:     r.date,
+  }));
+
+  const { data, error } = await sbBulkInsertTransactions(dbRows);
+  if (error) return { imported: 0, error: `Database error: ${error.message}` };
+
+  // Refresh the in-memory transaction cache
+  const { data: fresh, error: fetchErr } = await sbGetTransactions();
+  if (!fetchErr && fresh) {
+    _txCache = fresh.map(normalizeTx);
+  }
+
+  return { imported: (data || []).length };
 }
 
 // ── Analytics ─────────────────────────────────────────────────

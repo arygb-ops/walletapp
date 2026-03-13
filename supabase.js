@@ -106,6 +106,27 @@ export async function updateTransaction(id, updatedData) {
   }
 }
 
+// ── bulkInsertTransactions ────────────────────────────────────
+/**
+ * Insert multiple transaction rows in a single call.
+ * @param {Array<{title: string, amount: number, category: string, type: string, date: string}>} rows
+ * @returns {{ data: Array|null, error: object|null }}
+ */
+export async function bulkInsertTransactions(rows) {
+  try {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .insert(rows)
+      .select();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error("[bulkInsertTransactions]", error.message);
+    return { data: null, error };
+  }
+}
+
 // ── Categories ────────────────────────────────────────────────
 const CAT_TABLE = "categories";
 
