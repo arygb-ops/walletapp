@@ -1263,3 +1263,110 @@ td.tx-actions {
   transition: border-color var(--transition);
 }
 .cat-inline-input:focus { outline: none; border-color: var(--border-hi); }
+
+/* ── IMPORT PAGE ─────────────────────────────────────────────── */
+.import-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 24px;
+  border: 2px dashed var(--border-2);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+  text-align: center;
+  margin-top: 20px;
+}
+.import-dropzone.drag-over {
+  border-color: var(--blue);
+  background: var(--blue-deep);
+}
+.import-dropzone-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius);
+  background: var(--blue-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--blue);
+}
+.import-dropzone-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+.import-dropzone-or {
+  font-size: 0.82rem;
+  color: var(--text-3);
+}
+.import-dropzone-formats {
+  font-size: 0.78rem;
+  color: var(--text-3);
+  margin-top: 4px;
+}
+.import-file-label {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.import-file-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.import-error {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--red-dim);
+  border: 1px solid var(--red-glow);
+  color: var(--red);
+  font-size: 0.84rem;
+  white-space: pre-line;
+}
+.import-preview {
+  margin-top: 24px;
+  animation: fadeSlideUp 220ms cubic-bezier(0.4,0,0.2,1) both;
+}
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.import-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.import-preview-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+.import-clear-btn {
+  background: transparent;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.import-clear-btn:hover {
+  background: var(--red-dim);
+  color: var(--red);
+  border-color: var(--red-glow);
+}
+.import-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.hidden { display: none !important; }

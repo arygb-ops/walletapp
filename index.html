@@ -450,13 +450,52 @@
     <!-- ══ IMPORTS PLACEHOLDER ══ -->
     <section class="page-section" id="section-imports">
       <div class="page-content">
-        <div class="placeholder-screen">
-          <div class="placeholder-glyph">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Import Transactions</h2>
+            <p class="section-sub">Upload a CSV or Excel file to import transactions</p>
           </div>
-          <h2 class="placeholder-title">Imports</h2>
-          <p class="placeholder-sub">Bank statement imports coming soon.</p>
         </div>
+
+        <!-- Drop zone -->
+        <div class="import-dropzone card" id="import-dropzone">
+          <div class="import-dropzone-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <p class="import-dropzone-title">Drag &amp; Drop CSV or Excel file here</p>
+          <p class="import-dropzone-or">or</p>
+          <label class="primary-btn import-file-label" for="import-file-input">Upload File</label>
+          <input type="file" id="import-file-input" accept=".csv,.xlsx" class="import-file-hidden" />
+          <p class="import-dropzone-formats">Supported formats: <strong>CSV</strong>, <strong>XLSX</strong></p>
+        </div>
+
+        <!-- Error message -->
+        <div class="import-error hidden" id="import-error" role="alert"></div>
+
+        <!-- Preview table (shown after parse) -->
+        <div class="import-preview hidden" id="import-preview">
+          <div class="import-preview-header">
+            <h3 class="import-preview-title">Preview — <span id="import-preview-count">0</span> transaction(s) detected</h3>
+            <button type="button" class="import-clear-btn" id="import-clear-btn" title="Clear">✕ Clear</button>
+          </div>
+          <div class="transactions-table-wrapper">
+            <table class="transactions-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody id="import-preview-tbody"></tbody>
+            </table>
+          </div>
+          <div class="import-actions">
+            <button type="button" class="primary-btn" id="import-confirm-btn">Import Transactions</button>
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -476,6 +515,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script type="module" src="main.js"></script>
   <script>
     (function () {

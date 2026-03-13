@@ -15,6 +15,7 @@ import {
   loadAllTransactions,
   setTheme,
   updateWallet,
+  importTransactions,
 } from "./services.js";
 
 import {
@@ -24,7 +25,7 @@ import {
   deleteCategory,
 } from "./supabase.js";
 
-import { downloadFile, formatCurrency, generateInsights, toCSV, todayISO } from "./utils.js";
+import { downloadFile, formatCurrency, generateInsights, toCSV, todayISO, detectCategory, parseCSVText } from "./utils.js";
 import { initCharts, updateCharts } from "./charts.js";
 
 // ── Category System ───────────────────────────────────────────
@@ -248,6 +249,9 @@ export async function initApp() {
   injectDeleteConfirmModal();
   wireEditModal(els);
   wireDeleteConfirmModal(els);
+
+  // Wire import page
+  initImports();
 }
 
 function queryElements() {
@@ -1083,4 +1087,199 @@ function showDbError(els, error) {
     empty.textContent   = "⚠️ Failed to connect to database.";
   }
   console.error("[initApp] Supabase error:", error);
+}
+// ── Import Page ───────────────────────────────────────────────
+
+/**
+ * Wire the drag-and-drop import UI on the Imports page.
+ * Supports CSV (parsed via parseCSVText) and XLSX (via SheetJS / window.XLSX).
+ */
+function initImports() {
+  const dropzone    = document.getElementById("import-dropzone");
+  const fileInput   = document.getElementById("import-file-input");
+  const errorEl     = document.getElementById("import-error");
+  const previewEl   = document.getElementById("import-preview");
+  const countEl     = document.getElementById("import-preview-count");
+  const tbody       = document.getElementById("import-preview-tbody");
+  const confirmBtn  = document.getElementById("import-confirm-btn");
+  const clearBtn    = document.getElementById("import-clear-btn");
+
+  if (!dropzone || !fileInput) return;
+
+  /** Parsed transaction rows waiting for the user to confirm */
+  let _pendingRows = [];
+
+  // ── helpers ──────────────────────────────────────────────
+
+  function showError(msg) {
+    if (!errorEl) return;
+    errorEl.textContent = msg;
+    errorEl.classList.remove("hidden");
+  }
+
+  function clearError() {
+    if (!errorEl) return;
+    errorEl.textContent = "";
+    errorEl.classList.add("hidden");
+  }
+
+  function showPreview(rows) {
+    if (!previewEl || !tbody || !countEl) return;
+    _pendingRows = rows;
+    countEl.textContent = String(rows.length);
+    tbody.innerHTML = rows
+      .map((r) => {
+        const sign = r.type === "expense" ? "-" : "+";
+        const cls  = r.type === "expense" ? "tx-expense" : "tx-income";
+        return `<tr>
+          <td>${escapeHtml(r.date)}</td>
+          <td>${escapeHtml(r.category)}</td>
+          <td class="${cls}">${sign}${formatCurrency(r.amount)}</td>
+          <td><span class="tx-type ${cls}">${escapeHtml(r.type)}</span></td>
+        </tr>`;
+      })
+      .join("");
+    previewEl.classList.remove("hidden");
+  }
+
+  function resetImport() {
+    _pendingRows = [];
+    if (previewEl) previewEl.classList.add("hidden");
+    if (tbody)     tbody.innerHTML = "";
+    clearError();
+    // Reset file input so the same file can be re-uploaded
+    fileInput.value = "";
+  }
+
+  // ── file processing ───────────────────────────────────────
+
+  async function processFile(file) {
+    clearError();
+    resetImport();
+
+    const name = file.name.toLowerCase();
+    if (!name.endsWith(".csv") && !name.endsWith(".xlsx")) {
+      showError("Invalid file type. Please upload a .csv or .xlsx file.");
+      return;
+    }
+
+    if (file.size === 0) {
+      showError("The file is empty.");
+      return;
+    }
+
+    try {
+      let rows = [];
+      let parseErrors = [];
+
+      if (name.endsWith(".csv")) {
+        const text = await file.text();
+        const result = parseCSVText(text);
+        rows = result.transactions;
+        parseErrors = result.errors;
+      } else {
+        // XLSX via SheetJS (loaded globally as window.XLSX)
+        const XLSX = window.XLSX;
+        if (!XLSX) {
+          showError("Excel parser not available. Please reload the page.");
+          return;
+        }
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        // Convert to array of arrays
+        const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+        if (!raw || raw.length < 2) {
+          showError("The file is empty or contains no data rows.");
+          return;
+        }
+        // Build a CSV-like structure and reuse parseCSVText
+        const csvLines = raw.map((cols) =>
+          cols.map((c) => {
+            const s = String(c ?? "");
+            return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+          }).join(",")
+        );
+        const result = parseCSVText(csvLines.join("\n"));
+        rows = result.transactions;
+        parseErrors = result.errors;
+      }
+
+      if (parseErrors.length && !rows.length) {
+        showError(parseErrors.join("\n"));
+        return;
+      }
+
+      if (!rows.length) {
+        showError("No valid transactions found in the file.");
+        return;
+      }
+
+      if (parseErrors.length) {
+        showError("Some rows were skipped:\n" + parseErrors.join("\n"));
+      }
+
+      showPreview(rows);
+    } catch (err) {
+      console.error("[imports] processFile error:", err);
+      showError("Could not read the file. Please check the format and try again.");
+    }
+  }
+
+  // ── drag-and-drop ─────────────────────────────────────────
+
+  dropzone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropzone.classList.add("drag-over");
+  });
+  dropzone.addEventListener("dragleave", () => {
+    dropzone.classList.remove("drag-over");
+  });
+  dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("drag-over");
+    const file = e.dataTransfer?.files?.[0];
+    if (file) processFile(file);
+  });
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files?.[0];
+    if (file) processFile(file);
+  });
+
+  // Click on the drop zone (but not the label/input) triggers file picker
+  dropzone.addEventListener("click", (e) => {
+    if (e.target.closest("label") || e.target === fileInput) return;
+    fileInput.click();
+  });
+
+  // ── confirm import ────────────────────────────────────────
+
+  if (confirmBtn) {
+    confirmBtn.addEventListener("click", async () => {
+      if (!_pendingRows.length) return;
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = "Importing…";
+
+      const { imported, error } = await importTransactions(_pendingRows);
+
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = "Import Transactions";
+
+      if (error) {
+        showError(`Import failed: ${error}`);
+        return;
+      }
+
+      resetImport();
+      showToast(`Successfully imported ${imported} transaction(s).`, "success");
+    });
+  }
+
+  // ── clear button ──────────────────────────────────────────
+
+  if (clearBtn) {
+    clearBtn.addEventListener("click", resetImport);
+  }
 }
