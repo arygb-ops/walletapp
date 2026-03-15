@@ -129,6 +129,9 @@ const CATEGORY_KEYWORDS = {
   phone:      "Utilities",
 };
 
+/** Unique display-category names derived from CATEGORY_KEYWORDS values. */
+const KNOWN_CATEGORY_NAMES = [...new Set(Object.values(CATEGORY_KEYWORDS))];
+
 /**
  * Detect a category from a description string using keyword matching.
  * Returns "Other" when no keyword matches.
@@ -142,6 +145,34 @@ export function detectCategory(description) {
     if (lower.includes(keyword)) return category;
   }
   return "Other";
+}
+
+/**
+ * Resolve a raw category value (from an explicit "category" column) to a
+ * canonical display name using case-insensitive matching.
+ *
+ * Resolution order:
+ *   1. Direct keyword key match      (e.g. "salary"  → "Salary")
+ *   2. Case-insensitive display-name match (e.g. "Coffee" → "Coffee")
+ *   3. Non-empty unknown value: capitalise first letter (e.g. "food" → "Food")
+ *   4. Empty / whitespace-only input → "Other"
+ *
+ * @param {string} raw
+ * @returns {string}
+ */
+export function resolveCategory(raw) {
+  const normalized = String(raw == null ? "" : raw).trim().toLowerCase();
+  if (!normalized) return "Other";
+
+  // 1. Direct keyword key match (e.g. "salary" → "Salary")
+  if (CATEGORY_KEYWORDS[normalized]) return CATEGORY_KEYWORDS[normalized];
+
+  // 2. Case-insensitive match against known display names (e.g. "Coffee" → "Coffee")
+  const match = KNOWN_CATEGORY_NAMES.find((n) => n.toLowerCase() === normalized);
+  if (match) return match;
+
+  // 3. Non-empty but unknown: capitalise first letter (e.g. "food" → "Food")
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 /**
@@ -188,9 +219,10 @@ export function parseCSVText(text) {
 
   const headers = parseLine(lines[0]).map((h) => h.toLowerCase());
 
-  const dateIdx   = headers.findIndex((h) => h === "date");
-  const descIdx   = headers.findIndex((h) => ["description", "desc", "title", "name"].includes(h));
-  const amountIdx = headers.findIndex((h) => h === "amount");
+  const dateIdx     = headers.findIndex((h) => h === "date");
+  const descIdx     = headers.findIndex((h) => ["description", "desc", "title", "name"].includes(h));
+  const amountIdx   = headers.findIndex((h) => h === "amount");
+  const categoryIdx = headers.findIndex((h) => h === "category");
 
   if (dateIdx === -1)   errors.push("Missing required column: Date");
   if (amountIdx === -1) errors.push("Missing required column: Amount");
@@ -199,9 +231,10 @@ export function parseCSVText(text) {
 
   for (let i = 1; i < lines.length; i++) {
     const cols = parseLine(lines[i]);
-    const rawDate   = cols[dateIdx]   ?? "";
-    const rawAmount = cols[amountIdx] ?? "";
-    const rawDesc   = descIdx !== -1 ? (cols[descIdx] ?? "") : "";
+    const rawDate     = cols[dateIdx]     ?? "";
+    const rawAmount   = cols[amountIdx]   ?? "";
+    const rawDesc     = descIdx     !== -1 ? (cols[descIdx]     ?? "") : "";
+    const rawCategory = categoryIdx !== -1 ? (cols[categoryIdx] ?? "") : "";
 
     const amount = parseNumber(rawAmount);
     if (!Number.isFinite(amount)) {
@@ -215,7 +248,11 @@ export function parseCSVText(text) {
       ? todayISO()
       : parsedDate.toISOString().slice(0, 10);
 
-    const category = detectCategory(rawDesc);
+    // Use the explicit "category" column when present, otherwise detect from description
+    const trimmedCategory = rawCategory.trim();
+    const category = trimmedCategory
+      ? resolveCategory(trimmedCategory)
+      : detectCategory(rawDesc);
     const type     = amount < 0 ? "expense" : "income";
 
     transactions.push({ date, category, amount: Math.abs(amount), type });
