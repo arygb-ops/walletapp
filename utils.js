@@ -222,6 +222,7 @@ export function parseCSVText(text) {
   const dateIdx     = headers.findIndex((h) => h === "date");
   const descIdx     = headers.findIndex((h) => ["description", "desc", "title", "name"].includes(h));
   const amountIdx   = headers.findIndex((h) => h === "amount");
+  const typeIdx     = headers.findIndex((h) => h === "type");
   const categoryIdx = headers.findIndex((h) => h === "category");
 
   if (dateIdx === -1)   errors.push("Missing required column: Date");
@@ -235,6 +236,7 @@ export function parseCSVText(text) {
     const rawAmount   = cols[amountIdx]   ?? "";
     const rawDesc     = descIdx     !== -1 ? (cols[descIdx]     ?? "") : "";
     const rawCategory = categoryIdx !== -1 ? (cols[categoryIdx] ?? "") : "";
+    const rawType     = typeIdx     !== -1 ? (cols[typeIdx]     ?? "") : "";
 
     const amount = parseNumber(rawAmount);
     if (!Number.isFinite(amount)) {
@@ -253,7 +255,11 @@ export function parseCSVText(text) {
     const category = trimmedCategory
       ? resolveCategory(trimmedCategory)
       : detectCategory(rawDesc);
-    const type     = amount < 0 ? "expense" : "income";
+    // Use the explicit "type" column when present, otherwise infer from amount sign
+    const trimmedType = rawType.trim().toLowerCase();
+    const type = (trimmedType === "expense" || trimmedType === "income")
+      ? trimmedType
+      : (amount < 0 ? "expense" : "income");
 
     transactions.push({ date, category, amount: Math.abs(amount), type });
   }
