@@ -344,16 +344,22 @@ export async function updateTransaction(id, { amount, category, date, note, type
 
 /**
  * Bulk-insert parsed transactions from a file import.
+ *
  * Each row must have: { date, category, amount, type }
+ * The category value is used exactly as parsed — it is never re-derived
+ * from keyword detection here; that already happened in parseCSVText.
+ *
  * Returns { imported: number, error }.
  */
 export async function importTransactions(rows) {
   if (!rows || !rows.length) return { imported: 0, error: "No transactions to import." };
 
   const dbRows = rows.map((r) => ({
-    title:    r.category,
+    // title mirrors category (the app uses category as the display title)
+    title:    String(r.category || "").trim() || "Imported",
     amount:   r.amount,
-    category: r.category,
+    // category is passed through verbatim — never overridden by keyword detection
+    category: String(r.category || "").trim() || "Other",
     type:     r.type,
     date:     r.date,
   }));
