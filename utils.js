@@ -149,20 +149,24 @@ export function detectCategory(description) {
 
 /**
  * Resolve a raw category value (from an explicit "category" column) to a
- * canonical display name using case-insensitive matching.
+ * consistent display name.
  *
  * Resolution order:
  *   1. Direct keyword key match      (e.g. "salary"  → "Salary")
  *   2. Case-insensitive display-name match (e.g. "Coffee" → "Coffee")
- *   3. Non-empty unknown value: capitalise first letter (e.g. "food" → "Food")
+ *   3. Any other non-empty value    → capitalise first letter and return as-is
+ *      (e.g. "food" → "Food", "transport" → "Transport", "custom" → "Custom")
+ *      The value is NEVER converted to "Other" — the caller's intent is respected.
  *   4. Empty / whitespace-only input → "Other"
  *
  * @param {string} raw
  * @returns {string}
  */
 export function resolveCategory(raw) {
-  const normalized = String(raw == null ? "" : raw).trim().toLowerCase();
-  if (!normalized) return "Other";
+  const trimmed = String(raw == null ? "" : raw).trim();
+  if (!trimmed) return "Other";
+
+  const normalized = trimmed.toLowerCase();
 
   // 1. Direct keyword key match (e.g. "salary" → "Salary")
   if (CATEGORY_KEYWORDS[normalized]) return CATEGORY_KEYWORDS[normalized];
@@ -171,14 +175,36 @@ export function resolveCategory(raw) {
   const match = KNOWN_CATEGORY_NAMES.find((n) => n.toLowerCase() === normalized);
   if (match) return match;
 
-  // 3. Non-empty but unknown: capitalise first letter (e.g. "food" → "Food")
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  // 3. Unknown but non-empty value: preserve it with first-letter capitalisation.
+  //    This ensures CSV categories like "Food", "Transport", "Groceries" etc.
+  //    are ALWAYS kept, not silently replaced with "Other".
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }
 
 /**
  * Parse a CSV text string into an array of transaction objects.
- * Expected columns (case-insensitive): Date, Description, Amount
- * Any row with an invalid date or non-numeric amount is skipped.
+ *
+ * Supported columns (case-insensitive, BOM-safe):
+ *   Required : Date, Amount
+ *   Optional : Category, Type, Description / Desc / Title / Name / Note
+ *
+ * Column-resolution rules:
+ *   • Category column present → use its value directly (pass-through, any string
+ *     is accepted; only capitalises the first letter for unknown values).
+ *     detectCategory() is NEVER called when a Category column exists.
+ *   • Category column absent  → fall back to keyword detection on the description.
+ *   • Type column present     → use "income" / "expense" verbatim.
+ *   • Type column absent      → infer from amount sign (negative → expense).
+ *
+ * Robustness:
+ *   • Strips UTF-8 BOM (\uFEFF) that Excel adds to exported files.
+ *   • Strips invisible/non-printable characters from header names so that
+ *     columns are recognised even when copied from spreadsheet apps.
+ *   • Handles both comma and semicolon delimiters (auto-detected from header row).
+ *   • Accepts Windows (CRLF) and Unix (LF) line endings.
+ *
+ * Any row with a non-numeric amount is skipped and reported in errors[].
+ *
  * @param {string} text  — raw CSV content
  * @returns {{ transactions: Array, errors: string[] }}
  */
@@ -186,7 +212,10 @@ export function parseCSVText(text) {
   const transactions = [];
   const errors = [];
 
-  const lines = text
+  // Strip UTF-8 BOM that Excel adds to CSV exports (\uFEFF at position 0)
+  const cleanText = text.replace(/^\uFEFF/, "");
+
+  const lines = cleanText
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
@@ -195,6 +224,11 @@ export function parseCSVText(text) {
     errors.push("File is empty or contains no data rows.");
     return { transactions, errors };
   }
+
+  // Auto-detect delimiter: use semicolon if the header row contains one
+  // but no comma (handles European-locale Excel exports).
+  const headerLine = lines[0];
+  const delimiter = !headerLine.includes(",") && headerLine.includes(";") ? ";" : ",";
 
   // Parse a single CSV line respecting quoted fields
   function parseLine(line) {
@@ -206,7 +240,7 @@ export function parseCSVText(text) {
       if (ch === '"') {
         if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
         else inQuotes = !inQuotes;
-      } else if (ch === "," && !inQuotes) {
+      } else if (ch === delimiter && !inQuotes) {
         fields.push(current);
         current = "";
       } else {
@@ -217,25 +251,37 @@ export function parseCSVText(text) {
     return fields.map((f) => f.trim());
   }
 
-  const headers = parseLine(lines[0]).map((h) => h.trim().toLowerCase());
+  // Strip invisible/non-printable characters (including BOM remnants on individual
+  // fields) so header names are always clean ASCII for matching.
+  // eslint-disable-next-line no-control-regex
+  function sanitizeHeader(h) {
+    return h.replace(/[\u0000-\u001F\u007F-\u00A0\uFEFF]/g, "").trim().toLowerCase();
+  }
+
+  const headers = parseLine(lines[0]).map(sanitizeHeader);
 
   const dateIdx     = headers.findIndex((h) => h === "date");
-  const descIdx     = headers.findIndex((h) => ["description", "desc", "title", "name"].includes(h));
+  const descIdx     = headers.findIndex((h) => ["description", "desc", "title", "name", "note"].includes(h));
   const amountIdx   = headers.findIndex((h) => h === "amount");
   const typeIdx     = headers.findIndex((h) => h === "type");
-  const categoryIdx = headers.findIndex((h) => h === "category");
+  // Accept both "category" and "categories" as the category column header
+  const categoryIdx = headers.findIndex((h) => h === "category" || h === "categories");
 
   if (dateIdx === -1)   errors.push("Missing required column: Date");
   if (amountIdx === -1) errors.push("Missing required column: Amount");
 
   if (errors.length) return { transactions, errors };
 
+  // Whether the file explicitly supplies a Category column.
+  // When true, detectCategory() is never called — the column value is always used.
+  const hasCategoryColumn = categoryIdx !== -1;
+
   for (let i = 1; i < lines.length; i++) {
     const cols = parseLine(lines[i]);
     const rawDate     = cols[dateIdx]     ?? "";
     const rawAmount   = cols[amountIdx]   ?? "";
     const rawDesc     = descIdx     !== -1 ? (cols[descIdx]     ?? "") : "";
-    const rawCategory = categoryIdx !== -1 ? (cols[categoryIdx] ?? "") : "";
+    const rawCategory = hasCategoryColumn  ? (cols[categoryIdx] ?? "") : "";
     const rawType     = typeIdx     !== -1 ? (cols[typeIdx]     ?? "") : "";
 
     const amount = parseNumber(rawAmount);
@@ -244,18 +290,30 @@ export function parseCSVText(text) {
       continue;
     }
 
-    // Accept various date formats; fall back to rawDate if parsing fails
+    // Accept various date formats; fall back to today when parsing fails
     const parsedDate = new Date(rawDate);
     const date = (!rawDate || isNaN(parsedDate.getTime()))
       ? todayISO()
       : parsedDate.toISOString().slice(0, 10);
 
-    // Use the explicit "category" column when present, otherwise detect from description
-    const trimmedCategory = rawCategory.trim();
-    const category = trimmedCategory
-      ? resolveCategory(trimmedCategory)
-      : detectCategory(rawDesc);
-    // Use the explicit "type" column when present, otherwise infer from amount sign
+    // ── Category resolution ───────────────────────────────────────────────────
+    // Priority 1: explicit Category column value — use it directly.
+    //             resolveCategory() only capitalises the first letter for
+    //             unknown values; it never returns "Other" for a non-empty input.
+    // Priority 2: no Category column → keyword-detect from description field.
+    let category;
+    if (hasCategoryColumn) {
+      const trimmed = rawCategory.trim();
+      // Use the column value as-is (via resolveCategory for consistent casing).
+      // Even if the value is something completely custom, it is preserved.
+      category = trimmed ? resolveCategory(trimmed) : "Other";
+    } else {
+      category = detectCategory(rawDesc);
+    }
+
+    // ── Type resolution ───────────────────────────────────────────────────────
+    // Priority 1: explicit Type column ("income" or "expense").
+    // Priority 2: infer from the sign of the raw amount value.
     const trimmedType = rawType.trim().toLowerCase();
     const type = (trimmedType === "expense" || trimmedType === "income")
       ? trimmedType
