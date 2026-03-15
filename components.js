@@ -295,6 +295,7 @@ function queryElements() {
     themeToggle: document.getElementById("theme-toggle"),
     exportButton: document.getElementById("export-button"),
     exportMenuPanel: document.getElementById("export-menu-panel"),
+    importWalletSelect: document.getElementById("import-wallet-select"),
   };
 }
 
@@ -386,6 +387,17 @@ function syncWalletSelects(els) {
     els.transactionWallet.innerHTML = '<option value="">No wallets</option>';
   }
   els.filterWallet.innerHTML = '<option value="">All</option>' + optionsHtml;
+
+  // Populate the import page default-account selector
+  if (els.importWalletSelect) {
+    const prevImport = els.importWalletSelect.value;
+    els.importWalletSelect.innerHTML =
+      '<option value="">— Select account —</option>' +
+      wallets.map((w) => `<option value="${w.id}">${escapeHtml(w.name)}</option>`).join("");
+    if (wallets.some((w) => w.id === prevImport)) {
+      els.importWalletSelect.value = prevImport;
+    }
+  }
 }
 
 function resetWalletForm(els) {
@@ -1131,8 +1143,10 @@ function initImports() {
       .map((r) => {
         const sign = r.type === "expense" ? "-" : "+";
         const cls  = r.type === "expense" ? "tx-expense" : "tx-income";
+        const walletDisplay = r.walletName ? escapeHtml(r.walletName) : '<span class="muted">—</span>';
         return `<tr>
           <td>${escapeHtml(r.date)}</td>
+          <td>${walletDisplay}</td>
           <td>${escapeHtml(r.category)}</td>
           <td class="${cls}">${sign}${formatCurrency(r.amount)}</td>
           <td><span class="tx-type ${cls}">${escapeHtml(r.type)}</span></td>
@@ -1259,10 +1273,15 @@ function initImports() {
   if (confirmBtn) {
     confirmBtn.addEventListener("click", async () => {
       if (!_pendingRows.length) return;
+
+      // Read the fallback wallet from the selector (used for rows without a walletName)
+      const walletSelect = document.getElementById("import-wallet-select");
+      const fallbackWalletId = walletSelect ? walletSelect.value || undefined : undefined;
+
       confirmBtn.disabled = true;
       confirmBtn.textContent = "Importing…";
 
-      const { imported, error } = await importTransactions(_pendingRows);
+      const { imported, error } = await importTransactions(_pendingRows, fallbackWalletId);
 
       confirmBtn.disabled = false;
       confirmBtn.textContent = "Import Transactions";

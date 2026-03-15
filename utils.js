@@ -266,6 +266,12 @@ export function parseCSVText(text) {
   const typeIdx     = headers.findIndex((h) => h === "type");
   // Accept both "category" and "categories" as the category column header
   const categoryIdx = headers.findIndex((h) => h === "category" || h === "categories");
+  // Accept "wallet", "account", "wallet name", "account name" as the wallet column
+  const walletIdx   = headers.findIndex((h) =>
+    h === "wallet" || h === "account" ||
+    h === "wallet name" || h === "account name" ||
+    h === "walletname" || h === "accountname"
+  );
 
   if (dateIdx === -1)   errors.push("Missing required column: Date");
   if (amountIdx === -1) errors.push("Missing required column: Amount");
@@ -275,6 +281,7 @@ export function parseCSVText(text) {
   // Whether the file explicitly supplies a Category column.
   // When true, detectCategory() is never called — the column value is always used.
   const hasCategoryColumn = categoryIdx !== -1;
+  const hasWalletColumn   = walletIdx !== -1;
 
   for (let i = 1; i < lines.length; i++) {
     const cols = parseLine(lines[i]);
@@ -283,6 +290,7 @@ export function parseCSVText(text) {
     const rawDesc     = descIdx     !== -1 ? (cols[descIdx]     ?? "") : "";
     const rawCategory = hasCategoryColumn  ? (cols[categoryIdx] ?? "") : "";
     const rawType     = typeIdx     !== -1 ? (cols[typeIdx]     ?? "") : "";
+    const rawWallet   = hasWalletColumn    ? (cols[walletIdx]   ?? "") : "";
 
     const amount = parseNumber(rawAmount);
     if (!Number.isFinite(amount)) {
@@ -319,7 +327,7 @@ export function parseCSVText(text) {
       ? trimmedType
       : (amount < 0 ? "expense" : "income");
 
-    transactions.push({ date, category, amount: Math.abs(amount), type });
+    transactions.push({ date, category, amount: Math.abs(amount), type, walletName: rawWallet.trim() });
   }
 
   return { transactions, errors };

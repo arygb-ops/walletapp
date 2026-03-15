@@ -250,7 +250,8 @@ export async function createTransaction({ walletId, type, amount, category, date
   const { data, error } = await sbAddTransaction(
     title, numericAmount, trimmedCategory,
     type === "income" ? "income" : "expense",
-    dateISO
+    dateISO,
+    walletId
   );
 
   if (error) return { error: `Database error: ${error.message}` };
@@ -346,23 +347,54 @@ export async function updateTransaction(id, { amount, category, date, note, type
  * Bulk-insert parsed transactions from a file import.
  *
  * Each row must have: { date, category, amount, type }
+ * Optionally each row may have:
+ *   walletName {string} — account name as it appears in the accounts table
+ *                         (e.g. "Cash").  The function looks up the UUID and
+ *                         stores it in wallet_id.
+ *   walletId   {string} — pre-resolved UUID (takes priority over walletName).
+ *
+ * When neither is provided on a row but a fallbackWalletId is supplied,
+ * the fallback UUID is used.
+ *
  * The category value is used exactly as parsed — it is never re-derived
  * from keyword detection here; that already happened in parseCSVText.
  *
- * Returns { imported: number, error }.
+ * @param {Array}  rows
+ * @param {string} [fallbackWalletId] — UUID to use when a row has no wallet
+ * @returns {{ imported: number, error: string|null }}
  */
-export async function importTransactions(rows) {
+export async function importTransactions(rows, fallbackWalletId) {
   if (!rows || !rows.length) return { imported: 0, error: "No transactions to import." };
 
-  const dbRows = rows.map((r) => ({
-    // title mirrors category (the app uses category as the display title)
-    title:    String(r.category || "").trim() || "Imported",
-    amount:   r.amount,
-    // category is passed through verbatim — never overridden by keyword detection
-    category: String(r.category || "").trim() || "Other",
-    type:     r.type,
-    date:     r.date,
-  }));
+  // Build a lowercase-name → wallet map once for O(1) lookups per row
+  const walletByName = new Map(
+    _walletCache.map((w) => [w.name.toLowerCase(), w])
+  );
+
+  const dbRows = rows.map((r) => {
+    // Resolve wallet_id: row-level UUID > name lookup > fallback
+    let resolvedWalletId = r.walletId || null;
+    if (!resolvedWalletId && r.walletName) {
+      const name = String(r.walletName).trim().toLowerCase();
+      const match = walletByName.get(name);
+      resolvedWalletId = match ? match.id : null;
+    }
+    if (!resolvedWalletId && fallbackWalletId) {
+      resolvedWalletId = fallbackWalletId;
+    }
+
+    const row = {
+      // title mirrors category (the app uses category as the display title)
+      title:    String(r.category || "").trim() || "Imported",
+      amount:   r.amount,
+      // category is passed through verbatim — never overridden by keyword detection
+      category: String(r.category || "").trim() || "Other",
+      type:     r.type,
+      date:     r.date,
+    };
+    if (resolvedWalletId) row.wallet_id = resolvedWalletId;
+    return row;
+  });
 
   const { data, error } = await sbBulkInsertTransactions(dbRows);
   if (error) return { imported: 0, error: `Database error: ${error.message}` };

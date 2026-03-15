@@ -472,6 +472,15 @@
         <!-- Error message -->
         <div class="import-error hidden" id="import-error" role="alert"></div>
 
+        <!-- Default account selector (used when the file has no wallet column) -->
+        <div class="form-group import-wallet-row" id="import-wallet-row">
+          <label class="form-label" for="import-wallet-select">Default Account</label>
+          <select class="form-control" id="import-wallet-select">
+            <option value="">— Select account —</option>
+          </select>
+          <p class="import-wallet-hint">Used for transactions that don't specify an account in the file.</p>
+        </div>
+
         <!-- Preview table (shown after parse) -->
         <div class="import-preview hidden" id="import-preview">
           <div class="import-preview-header">
@@ -483,6 +492,7 @@
               <thead>
                 <tr>
                   <th>Date</th>
+                  <th>Account</th>
                   <th>Category</th>
                   <th>Amount</th>
                   <th>Type</th>
