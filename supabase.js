@@ -40,14 +40,17 @@ export async function getTransactions() {
  * @param {number} amount
  * @param {string} category
  * @param {"income"|"expense"} type
- * @param {string} date  — ISO date string, e.g. "2025-03-11"
+ * @param {string} date     — ISO date string, e.g. "2025-03-11"
+ * @param {string} [walletId] — UUID of the account in the accounts table
  * @returns {{ data: object|null, error: object|null }}
  */
-export async function addTransaction(title, amount, category, type, date) {
+export async function addTransaction(title, amount, category, type, date, walletId) {
   try {
+    const row = { title, amount, category, type, date };
+    if (walletId) row.wallet_id = walletId;
     const { data, error } = await supabase
       .from(TABLE)
-      .insert([{ title, amount, category, type, date }])
+      .insert([row])
       .select()
       .single();
 
