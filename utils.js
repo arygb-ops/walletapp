@@ -217,7 +217,7 @@ export function parseCSVText(text) {
     return fields.map((f) => f.trim());
   }
 
-  const headers = parseLine(lines[0]).map((h) => h.toLowerCase());
+  const headers = parseLine(lines[0]).map((h) => h.trim().toLowerCase());
 
   const dateIdx     = headers.findIndex((h) => h === "date");
   const descIdx     = headers.findIndex((h) => ["description", "desc", "title", "name"].includes(h));
