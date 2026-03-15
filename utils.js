@@ -253,7 +253,7 @@ export function parseCSVText(text) {
     // Use the explicit "category" column when present, otherwise detect from description
     const trimmedCategory = rawCategory.trim();
     const category = trimmedCategory
-      ? trimmedCategory
+      ? resolveCategory(trimmedCategory)
       : detectCategory(rawDesc);
     // Use the explicit "type" column when present, otherwise infer from amount sign
     const trimmedType = rawType.trim().toLowerCase();
