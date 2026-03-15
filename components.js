@@ -25,7 +25,7 @@ import {
   deleteCategory,
 } from "./supabase.js";
 
-import { downloadFile, formatCurrency, generateInsights, toCSV, todayISO, detectCategory, parseCSVText } from "./utils.js";
+import { downloadFile, formatCurrency, generateInsights, toCSV, todayISO, parseCSVText } from "./utils.js";
 import { initCharts, updateCharts } from "./charts.js";
 
 // ── Category System ───────────────────────────────────────────
