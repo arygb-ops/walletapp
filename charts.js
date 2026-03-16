@@ -399,8 +399,10 @@ export function initCharts(analytics, transactions = []) {
     // Center text plugin (scoped to this chart)
     const centerTextPlugin = {
       id: "centerText",
+      _hidden: false,
       afterDraw(chart) {
         if (chart.config.type !== "doughnut") return;
+        if (this._hidden) return;
         const { ctx, chartArea } = chart;
         if (!chartArea) return;
         const total = chart.config.data.datasets[0].data.reduce((s, v) => s + v, 0);
@@ -419,6 +421,24 @@ export function initCharts(analytics, transactions = []) {
         ctx.restore();
       },
     };
+
+    analyticsCategoryCtx.addEventListener("mousemove", (e) => {
+      if (!analyticsCategoryChart) return;
+      const points = analyticsCategoryChart.getElementsAtEventForMode(e, "nearest", { intersect: true }, false);
+      const hovering = points.length > 0;
+      if (hovering !== centerTextPlugin._hidden) {
+        centerTextPlugin._hidden = hovering;
+        analyticsCategoryChart.draw();
+      }
+    });
+
+    analyticsCategoryCtx.addEventListener("mouseleave", () => {
+      if (!analyticsCategoryChart) return;
+      if (centerTextPlugin._hidden) {
+        centerTextPlugin._hidden = false;
+        analyticsCategoryChart.draw();
+      }
+    });
 
     analyticsCategoryChart = new Chart(analyticsCategoryCtx, {
       type: "doughnut",
