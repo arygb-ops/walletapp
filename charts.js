@@ -396,13 +396,14 @@ export function initCharts(analytics, transactions = []) {
 
   // ── Spending by Category (donut) ────────────────────────────
   if (analyticsCategoryCtx) {
+    // Center label reference — used to toggle visibility on hover
+    const centerLabel = { style: { opacity: 1 } };
+
     // Center text plugin (scoped to this chart)
     const centerTextPlugin = {
       id: "centerText",
-      _hidden: false,
       afterDraw(chart) {
         if (chart.config.type !== "doughnut") return;
-        if (this._hidden) return;
         const { ctx, chartArea } = chart;
         if (!chartArea) return;
         const total = chart.config.data.datasets[0].data.reduce((s, v) => s + v, 0);
@@ -410,6 +411,7 @@ export function initCharts(analytics, transactions = []) {
         const cx = (chartArea.left + chartArea.right) / 2;
         const cy = (chartArea.top + chartArea.bottom) / 2;
         ctx.save();
+        ctx.globalAlpha = centerLabel.style.opacity;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.font = "700 15px 'DM Sans', system-ui, sans-serif";
@@ -422,20 +424,11 @@ export function initCharts(analytics, transactions = []) {
       },
     };
 
-    analyticsCategoryCtx.addEventListener("mousemove", (e) => {
-      if (!analyticsCategoryChart) return;
-      const points = analyticsCategoryChart.getElementsAtEventForMode(e, "nearest", { intersect: true }, false);
-      const hovering = points.length > 0;
-      if (hovering !== centerTextPlugin._hidden) {
-        centerTextPlugin._hidden = hovering;
-        analyticsCategoryChart.draw();
-      }
-    });
-
+    // MOUSELEAVE handler — restore center label when mouse exits the chart
     analyticsCategoryCtx.addEventListener("mouseleave", () => {
       if (!analyticsCategoryChart) return;
-      if (centerTextPlugin._hidden) {
-        centerTextPlugin._hidden = false;
+      if (centerLabel.style.opacity !== 1) {
+        centerLabel.style.opacity = 1;
         analyticsCategoryChart.draw();
       }
     });
@@ -455,6 +448,12 @@ export function initCharts(analytics, transactions = []) {
       },
       options: {
         cutout: "55%",
+        onHover: (event, elements) => {
+          const newOpacity = elements.length > 0 ? 0 : 1;
+          if (centerLabel.style.opacity !== newOpacity) {
+            centerLabel.style.opacity = newOpacity;
+          }
+        },
         plugins: {
           legend: {
             position: "bottom", align: "center",
