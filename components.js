@@ -19,6 +19,7 @@ import {
 } from "./services.js";
 
 import {
+  supabase,
   getCategories,
   insertCategory,
   updateCategory,
@@ -252,6 +253,9 @@ export async function initApp() {
 
   // Wire import page
   initImports();
+
+  // Wire photo gallery
+  initPhotoGallery();
 }
 
 function queryElements() {
@@ -1301,4 +1305,270 @@ function initImports() {
   if (clearBtn) {
     clearBtn.addEventListener("click", resetImport);
   }
+}
+
+// ── Photo Gallery ─────────────────────────────────────────────
+
+/**
+ * initPhotoGallery — wires the Bizim xatirələrimiz / Fotolar section.
+ * Uses Supabase Storage (bucket: "photos") to list, upload and display photos.
+ * Groups photos by date, renders a floating masonry-style grid,
+ * animates cards on scroll (IntersectionObserver), and provides a modal viewer.
+ */
+function initPhotoGallery() {
+  // DOM refs
+  const fileInput     = document.getElementById("photo-file-input");
+  const statusEl      = document.getElementById("photos-upload-status");
+  const loadingEl     = document.getElementById("photos-loading");
+  const groupsEl      = document.getElementById("photos-groups-container");
+  const emptyEl       = document.getElementById("photos-empty");
+  const backdrop      = document.getElementById("photo-modal-backdrop");
+  const modal         = document.getElementById("photo-modal");
+  const modalImg      = document.getElementById("photo-modal-img");
+  const modalCaption  = document.getElementById("photo-modal-caption");
+  const closeBtn      = document.getElementById("photo-modal-close");
+  const prevBtn       = document.getElementById("photo-modal-prev");
+  const nextBtn       = document.getElementById("photo-modal-next");
+
+  if (!fileInput || !groupsEl) return;
+
+  // All flat photo objects (used by modal navigation)
+  let _allPhotos = [];
+  let _modalIdx  = 0;
+
+  // IntersectionObserver for scroll-reveal
+  const _io = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          _io.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.12 }
+  );
+
+  // ── Supabase storage helpers ──────────────────────────────
+
+  const BUCKET = "photos";
+  // Use the module-level supabase import directly
+  const _sb = supabase;
+
+  // Kick off initial load
+  loadPhotos();
+
+  async function listPhotos() {
+    const { data, error } = await _sb.storage.from(BUCKET).list("", {
+      limit: 500,
+      sortBy: { column: "created_at", order: "desc" },
+    });
+    if (error) {
+      console.error("[gallery] list error:", error.message);
+      return [];
+    }
+    return (data || []).filter((f) => f.name && f.name !== ".emptyFolderPlaceholder");
+  }
+
+  function getPublicUrl(name) {
+    const { data } = _sb.storage.from(BUCKET).getPublicUrl(name);
+    return data?.publicUrl ?? "";
+  }
+
+  async function uploadPhoto(file) {
+    const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${Date.now()}_${safe}`;
+    const { error } = await _sb.storage
+      .from(BUCKET)
+      .upload(path, file, { cacheControl: "3600", upsert: false });
+    return { error };
+  }
+
+  // ── Render ────────────────────────────────────────────────
+
+  function groupByDate(photos) {
+    // Parse date from filename prefix (UNIX ms) or fall back to created_at
+    const groups = {};
+    photos.forEach((photo) => {
+      const ts = parseInt(photo.name.split("_")[0], 10);
+      const d  = isNaN(ts) ? new Date(photo.created_at) : new Date(ts);
+      const key = isNaN(d.getTime())
+        ? "Tarixsiz"
+        : d.toLocaleDateString("az-AZ", { day: "2-digit", month: "long", year: "numeric" });
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(photo);
+    });
+    return groups;
+  }
+
+  function renderGallery(photos) {
+    _allPhotos = photos;
+    groupsEl.innerHTML = "";
+
+    if (!photos.length) {
+      emptyEl.classList.remove("hidden");
+      return;
+    }
+    emptyEl.classList.add("hidden");
+
+    const groups = groupByDate(photos);
+    let flatIdx  = 0;
+
+    Object.entries(groups).forEach(([dateLabel, items]) => {
+      const groupEl = document.createElement("div");
+      groupEl.className = "photo-group";
+
+      // Group title
+      groupEl.innerHTML = `
+        <div class="photo-group-title">
+          <span class="photo-group-title-text">${escapeHtml(dateLabel)}</span>
+          <span class="photo-group-title-count">${items.length} foto</span>
+        </div>
+        <div class="photo-grid"></div>
+      `;
+
+      const grid = groupEl.querySelector(".photo-grid");
+
+      items.forEach((photo, i) => {
+        const url     = getPublicUrl(photo.name);
+        const absIdx  = flatIdx++;
+        const itemEl  = document.createElement("div");
+        itemEl.className = "photo-item";
+        itemEl.dataset.idx = absIdx;
+        // Stagger animation delay (capped at 500ms)
+        const delay = Math.min(i * 60, 500);
+        itemEl.style.transitionDelay = `${delay}ms`;
+
+        const img = document.createElement("img");
+        img.src   = url;
+        img.alt   = escapeHtml(photo.name);
+        img.loading = "lazy";
+        img.decoding = "async";
+
+        itemEl.appendChild(img);
+        grid.appendChild(itemEl);
+
+        // Observe for scroll-reveal
+        _io.observe(itemEl);
+
+        // Open modal on click
+        itemEl.addEventListener("click", () => openModal(absIdx));
+      });
+
+      groupsEl.appendChild(groupEl);
+    });
+  }
+
+  async function loadPhotos() {
+    loadingEl.style.display = "flex";
+    emptyEl.classList.add("hidden");
+    groupsEl.innerHTML = "";
+
+    const photos = await listPhotos();
+
+    loadingEl.style.display = "none";
+    renderGallery(photos);
+  }
+
+  function showGalleryError(msg) {
+    loadingEl.style.display = "none";
+    groupsEl.innerHTML = `<p style="color:var(--red);padding:32px 0;text-align:center;font-size:.88rem;">${escapeHtml(msg)}</p>`;
+  }
+
+  // ── Upload ────────────────────────────────────────────────
+
+  fileInput.addEventListener("change", async () => {
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) return;
+    fileInput.value = "";
+
+    setStatus(`Yüklənir… 0/${files.length}`);
+
+    let uploaded = 0;
+    let failed   = 0;
+
+    for (const file of files) {
+      const { error } = await uploadPhoto(file);
+      if (error) {
+        console.error("[gallery] upload error:", error.message);
+        failed++;
+      } else {
+        uploaded++;
+      }
+      setStatus(`Yüklənir… ${uploaded + failed}/${files.length}`);
+    }
+
+    if (failed) {
+      setStatus(`${uploaded} yükləndi, ${failed} xəta.`, "error");
+    } else {
+      setStatus(`${uploaded} foto əlavə edildi ✓`, "ok");
+    }
+    setTimeout(() => setStatus(""), 3500);
+
+    // Reload gallery
+    loadPhotos();
+  });
+
+  function setStatus(msg, type) {
+    if (!statusEl) return;
+    statusEl.textContent = msg;
+    statusEl.style.color = type === "error"
+      ? "var(--red)"
+      : type === "ok"
+        ? "var(--green)"
+        : "var(--text-2)";
+  }
+
+  // ── Modal ─────────────────────────────────────────────────
+
+  function openModal(idx) {
+    _modalIdx = idx;
+    renderModal();
+    backdrop.classList.add("visible");
+    modal.classList.add("visible");
+    modal.removeAttribute("aria-hidden");
+    document.addEventListener("keydown", onKeyDown);
+  }
+
+  function closeModal() {
+    backdrop.classList.remove("visible");
+    modal.classList.remove("visible");
+    modal.setAttribute("aria-hidden", "true");
+    document.removeEventListener("keydown", onKeyDown);
+  }
+
+  function renderModal() {
+    const photo = _allPhotos[_modalIdx];
+    if (!photo) return;
+    modalImg.src = getPublicUrl(photo.name);
+    modalImg.alt = photo.name;
+
+    // Build caption: index / total
+    if (modalCaption) {
+      modalCaption.textContent = `${_modalIdx + 1} / ${_allPhotos.length}`;
+    }
+
+    // Show/hide nav buttons
+    if (prevBtn) prevBtn.style.display = _modalIdx > 0 ? "" : "none";
+    if (nextBtn) nextBtn.style.display = _modalIdx < _allPhotos.length - 1 ? "" : "none";
+  }
+
+  function showPrev() {
+    if (_modalIdx > 0) { _modalIdx--; renderModal(); }
+  }
+
+  function showNext() {
+    if (_modalIdx < _allPhotos.length - 1) { _modalIdx++; renderModal(); }
+  }
+
+  function onKeyDown(e) {
+    if (e.key === "Escape")     closeModal();
+    if (e.key === "ArrowLeft")  showPrev();
+    if (e.key === "ArrowRight") showNext();
+  }
+
+  closeBtn?.addEventListener("click", closeModal);
+  backdrop?.addEventListener("click", closeModal);
+  prevBtn?.addEventListener("click", (e) => { e.stopPropagation(); showPrev(); });
+  nextBtn?.addEventListener("click", (e) => { e.stopPropagation(); showNext(); });
 }
