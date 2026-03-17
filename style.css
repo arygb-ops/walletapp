@@ -1371,3 +1371,300 @@ td.tx-actions {
   margin-top: 16px;
 }
 .hidden { display: none !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   PHOTO GALLERY — Bizim xatirələrimiz
+   Premium floating layout with depth, animations, modal viewer
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Upload area ─────────────────────────────────────────────── */
+.photos-upload-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.photos-upload-label {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.photos-file-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.photos-upload-status {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  min-width: 120px;
+}
+
+/* ── Loading state ───────────────────────────────────────────── */
+.photos-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 60px 0;
+  color: var(--text-3);
+  font-size: 0.88rem;
+}
+.photos-loading-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border-2);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: gallery-spin 0.7s linear infinite;
+}
+@keyframes gallery-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Empty state ─────────────────────────────────────────────── */
+.photos-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 60px 0;
+  color: var(--text-3);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* ── Date group ──────────────────────────────────────────────── */
+.photo-group {
+  margin-bottom: 52px;
+}
+.photo-group-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.photo-group-title::before {
+  content: '';
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--blue);
+  flex-shrink: 0;
+  box-shadow: 0 0 8px var(--blue-glow);
+}
+.photo-group-title-text {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-1);
+}
+.photo-group-title-count {
+  font-size: 0.78rem;
+  color: var(--text-3);
+  margin-left: auto;
+  font-weight: 400;
+}
+
+/* ── Floating masonry grid ───────────────────────────────────── */
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+/* Depth pattern: assign scale/opacity variations via nth-child */
+.photo-item {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  will-change: transform, opacity;
+  /* Scroll-reveal: start hidden */
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 480ms cubic-bezier(0.4,0,0.2,1),
+    transform 480ms cubic-bezier(0.4,0,0.2,1),
+    box-shadow 220ms cubic-bezier(0.4,0,0.2,1),
+    border-color 220ms cubic-bezier(0.4,0,0.2,1);
+}
+.photo-item.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Staggered vertical offsets for floating feel */
+.photo-item:nth-child(3n+1) { margin-top: 0;   }
+.photo-item:nth-child(3n+2) { margin-top: 14px; }
+.photo-item:nth-child(3n+3) { margin-top: 6px;  }
+
+/* Depth layering: background photos are slightly smaller + dimmer */
+.photo-item:nth-child(4n+1) { transform: translateY(24px) scale(1);    }
+.photo-item:nth-child(4n+2) { transform: translateY(24px) scale(0.97); }
+.photo-item:nth-child(4n+3) { transform: translateY(24px) scale(0.95); }
+.photo-item:nth-child(4n+4) { transform: translateY(24px) scale(0.98); }
+
+.photo-item:nth-child(4n+1).is-visible { transform: translateY(0) scale(1);    opacity: 1; }
+.photo-item:nth-child(4n+2).is-visible { transform: translateY(0) scale(0.97); opacity: 0.93; }
+.photo-item:nth-child(4n+3).is-visible { transform: translateY(0) scale(0.95); opacity: 0.85; }
+.photo-item:nth-child(4n+4).is-visible { transform: translateY(0) scale(0.98); opacity: 0.97; }
+
+/* Hover — lift to front */
+.photo-item:hover {
+  transform: translateY(-4px) scale(1.06) !important;
+  opacity: 1 !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.30);
+  border-color: var(--border-hi);
+  z-index: 2;
+}
+
+/* Photo image */
+.photo-item img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  border-radius: 14px;
+  pointer-events: none;
+  transition: transform 220ms cubic-bezier(0.4,0,0.2,1);
+}
+.photo-item:hover img {
+  transform: scale(1.03);
+}
+
+/* Optional subtle overlay on hover */
+.photo-item::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgba(99,179,237,0.04) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 220ms ease;
+  pointer-events: none;
+}
+.photo-item:hover::after {
+  opacity: 1;
+}
+
+/* ── Photo Modal ─────────────────────────────────────────────── */
+.photo-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0);
+  backdrop-filter: blur(0px);
+  z-index: 900;
+  pointer-events: none;
+  transition: background 300ms ease, backdrop-filter 300ms ease;
+}
+.photo-modal-backdrop.visible {
+  background: rgba(0,0,0,0.82);
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+}
+.photo-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 901;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 260ms cubic-bezier(0.4,0,0.2,1), transform 260ms cubic-bezier(0.4,0,0.2,1);
+}
+.photo-modal.visible {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+.photo-modal-img-wrap {
+  max-width: min(90vw, 1100px);
+  max-height: 85vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.photo-modal-img {
+  max-width: 100%;
+  max-height: 85vh;
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+  object-fit: contain;
+  display: block;
+}
+.photo-modal-close {
+  position: fixed;
+  top: 20px; right: 24px;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #fff;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--transition), transform var(--transition);
+  z-index: 902;
+}
+.photo-modal-close:hover {
+  background: rgba(255,255,255,0.2);
+  transform: scale(1.1);
+}
+.photo-modal-nav {
+  position: fixed;
+  top: 50%; transform: translateY(-50%);
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #fff;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--transition), transform var(--transition);
+  z-index: 902;
+}
+.photo-modal-nav:hover {
+  background: rgba(255,255,255,0.22);
+  transform: translateY(-50%) scale(1.08);
+}
+.photo-modal-prev { left: 20px; }
+.photo-modal-next { right: 20px; }
+.photo-modal-caption {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.88);
+  font-size: 0.82rem;
+  padding: 6px 16px;
+  border-radius: 99px;
+  white-space: nowrap;
+  max-width: 90vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 902;
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .photo-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .photo-item:nth-child(3n+2) { margin-top: 8px; }
+  .photo-item:nth-child(3n+3) { margin-top: 4px; }
+  .photo-modal-prev { left: 8px; }
+  .photo-modal-next { right: 8px; }
+}
