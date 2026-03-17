@@ -1352,14 +1352,12 @@ function initPhotoGallery() {
   // ── Supabase storage helpers ──────────────────────────────
 
   const BUCKET = "photos";
-  // Use the module-level supabase import directly
-  const _sb = supabase;
 
   // Kick off initial load
   loadPhotos();
 
   async function listPhotos() {
-    const { data, error } = await _sb.storage.from(BUCKET).list("", {
+    const { data, error } = await supabase.storage.from(BUCKET).list("", {
       limit: 500,
       sortBy: { column: "created_at", order: "desc" },
     });
@@ -1371,14 +1369,15 @@ function initPhotoGallery() {
   }
 
   function getPublicUrl(name) {
-    const { data } = _sb.storage.from(BUCKET).getPublicUrl(name);
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(name);
     return data?.publicUrl ?? "";
   }
 
   async function uploadPhoto(file) {
-    const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const path = `${Date.now()}_${safe}`;
-    const { error } = await _sb.storage
+    // Use timestamp + sanitized extension only to avoid any path traversal risks
+    const ext  = (file.name.split(".").pop() || "jpg").replace(/[^a-z0-9]/gi, "").slice(0, 10);
+    const path = `${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
       .from(BUCKET)
       .upload(path, file, { cacheControl: "3600", upsert: false });
     return { error };
@@ -1387,32 +1386,37 @@ function initPhotoGallery() {
   // ── Render ────────────────────────────────────────────────
 
   function groupByDate(photos) {
-    // Parse date from filename prefix (UNIX ms) or fall back to created_at
+    // Minimum reasonable UNIX ms timestamp: 2001-09-09 (1000000000000)
+    const MIN_TS = 1_000_000_000_000;
     const groups = {};
     photos.forEach((photo) => {
-      const ts = parseInt(photo.name.split("_")[0], 10);
-      const d  = isNaN(ts) ? new Date(photo.created_at) : new Date(ts);
+      const prefix = photo.name.split(".")[0];
+      const ts = parseInt(prefix, 10);
+      const validTs = !isNaN(ts) && ts >= MIN_TS;
+      const d = validTs ? new Date(ts) : new Date(photo.created_at);
       const key = isNaN(d.getTime())
         ? "Tarixsiz"
         : d.toLocaleDateString("az-AZ", { day: "2-digit", month: "long", year: "numeric" });
       if (!groups[key]) groups[key] = [];
-      groups[key].push(photo);
+      groups[key].push({ ...photo, _dateLabel: key, _date: d });
     });
     return groups;
   }
 
   function renderGallery(photos) {
-    _allPhotos = photos;
     groupsEl.innerHTML = "";
 
     if (!photos.length) {
       emptyEl.classList.remove("hidden");
+      _allPhotos = [];
       return;
     }
     emptyEl.classList.add("hidden");
 
     const groups = groupByDate(photos);
-    let flatIdx  = 0;
+    // Build flat list of enriched photos for modal navigation (in display order)
+    _allPhotos = [];
+    let flatIdx = 0;
 
     Object.entries(groups).forEach(([dateLabel, items]) => {
       const groupEl = document.createElement("div");
@@ -1432,6 +1436,8 @@ function initPhotoGallery() {
       items.forEach((photo, i) => {
         const url     = getPublicUrl(photo.name);
         const absIdx  = flatIdx++;
+        _allPhotos.push(photo);
+
         const itemEl  = document.createElement("div");
         itemEl.className = "photo-item";
         itemEl.dataset.idx = absIdx;
@@ -1441,7 +1447,7 @@ function initPhotoGallery() {
 
         const img = document.createElement("img");
         img.src   = url;
-        img.alt   = escapeHtml(photo.name);
+        img.alt   = escapeHtml(photo._dateLabel || photo.name);
         img.loading = "lazy";
         img.decoding = "async";
 
@@ -1540,12 +1546,16 @@ function initPhotoGallery() {
   function renderModal() {
     const photo = _allPhotos[_modalIdx];
     if (!photo) return;
-    modalImg.src = getPublicUrl(photo.name);
-    modalImg.alt = photo.name;
+    const url = getPublicUrl(photo.name);
+    modalImg.src = url;
+    modalImg.alt = photo._dateLabel
+      ? `Foto ${_modalIdx + 1} — ${photo._dateLabel}`
+      : `Foto ${_modalIdx + 1}`;
 
-    // Build caption: index / total
+    // Caption: date label + position counter
     if (modalCaption) {
-      modalCaption.textContent = `${_modalIdx + 1} / ${_allPhotos.length}`;
+      const label = photo._dateLabel ? `${photo._dateLabel} · ` : "";
+      modalCaption.textContent = `${label}${_modalIdx + 1} / ${_allPhotos.length}`;
     }
 
     // Show/hide nav buttons

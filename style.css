@@ -1510,7 +1510,7 @@ td.tx-actions {
 /* Depth layering: background photos are slightly smaller + dimmer */
 .photo-item:nth-child(4n+1) { transform: translateY(24px) scale(1);    }
 .photo-item:nth-child(4n+2) { transform: translateY(24px) scale(0.97); }
-.photo-item:nth-child(4n+3) { transform: translateY(24px) scale(0.95); opacity: 0; }
+.photo-item:nth-child(4n+3) { transform: translateY(24px) scale(0.95); }
 .photo-item:nth-child(4n+4) { transform: translateY(24px) scale(0.98); }
 
 .photo-item:nth-child(4n+1).is-visible { transform: translateY(0) scale(1);    opacity: 1; }
